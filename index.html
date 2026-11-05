@@ -1707,33 +1707,65 @@ window.DF_SFX = {
         [6.5, 13.0, "电线杆上的寻狗启事被暴雨打湿，车灯劈不开深黑的芦苇荡。"]
       ],
       draw: function (ctx, lt, dt) {
-        // 漆黑暴雨夜空
-        D.sky(ctx, [[0, '#0a0d14'], [0.6, '#111722'], [1, '#1b222d']]);
+        // 1. 深邃暗夜天空与远山视差
+        D.sky(ctx, [[0, '#06080e'], [0.5, '#0c1017'], [1, '#151c26']]);
+        D.hills(ctx, 750, 35, 2.0, '#0b0f15', 3, lt * 5); // 极慢背景视差
 
-        // 水泥电线杆与横跨电线
-        D.pole(ctx, 420, 820, 580, '#1a1f26');
-        D.wires(ctx, 0, 1920, 260, 40);
+        // 2. 远景：芦苇丛在狂风暴雨中剧烈起伏摇摆（带风浪层级）
+        D.reeds(ctx, 790, lt * 3.5, 180, '#1c241e', 15, 260, 480, W);
+        D.reeds(ctx, 810, lt * 3.8 + 1.2, 140, '#131a15', 18, 220, 400, W);
 
-        // 电线杆上贴着大发的寻狗启事（随暴雨水迹斑斑）
-        D.poster(ctx, 420, 520, 1.35, 0.04, 0.95, 0.4);
+        // 3. 泥泞田埂与积水水洼倒影（高反光与水洼反光）
+        D.ground(ctx, 810, '#11151c', '#06080a');
+        
+        // 地面积水反光坑
+        ctx.save();
+        ctx.fillStyle = 'rgba(25, 35, 48, 0.55)';
+        ctx.beginPath();
+        ctx.ellipse(680, 840, 140, 22, -0.05, 0, Math.PI * 2);
+        ctx.ellipse(1150, 850, 180, 25, 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
-        // 远处芦苇丛在狂风暴雨中剧烈起伏摇摆
-        D.reeds(ctx, 800, lt * 3, 160, '#3d4734', 15, 240, 500, W);
-        D.ground(ctx, 810, '#15191f', '#090c10');
+        // 4. 中景：水泥电线杆与横跨电线（贴着湿透的寻狗启事）
+        D.pole(ctx, 360, 820, 600, '#14181f');
+        D.wires(ctx, 0, 1920, 240, 45);
+        D.poster(ctx, 360, 500, 1.4, 0.05, 0.95, 0.6); // 寻狗启事带雨水浸湿下垂感
 
-        // 阿沐打着强烈手电筒光柱在狂风暴雨中一步一滑向前搜寻
-        const amuX = 1200 - lt * 15;
-        DF.people.drawAmu(ctx, amuX, 810, 1.4, -1, 'search', lt);
+        // 5. 焦点角色 1：阿沐在泥泞中顶风搜寻
+        // 位置缓慢向左推移，手电筒光柱随步伐自然摇曳，劈开雨幕
+        const amuX = 1260 - lt * 18;
+        DF.people.drawAmu(ctx, amuX, 810, 1.45, -1, 'search', lt);
 
-        // 远方泥泞深处，大发小小的白色身影逆着风雨艰难跋涉
-        const lonelyDogX = 720 - lt * 25;
-        DF.dog.draw(ctx, lonelyDogX, 800, 0.75, -1, 'walk', { t: lt * 1.5, phase: (lt * 1.6) % 1, dirtLevel: 0.7 });
+        // 6. 焦点角色 2：大发在田埂深处泥泞涉水艰难跋涉
+        // 增加更具表现力的泥水深一脚浅一脚颠簸、以及四爪溅起的泥浆
+        const lonelyDogX = 700 - lt * 28;
+        if (lonelyDogX > -100) {
+          // 爪下泥水飞溅
+          const splashK = Math.sin(lt * 6);
+          if (splashK > 0.2) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(70, 52, 35, 0.85)';
+            for (let sp = 0; sp < 4; sp++) {
+              ctx.fillRect(lonelyDogX + 15 + sp * 8, 808 - Math.random() * 12, 3.5, 3.5);
+            }
+            ctx.restore();
+          }
+          // 大发逆风艰难前行（长途跋涉满身泥泞草籽，dirtLevel随寻找加重到 0.8）
+          DF.dog.draw(ctx, lonelyDogX, 802, 0.85, -1, 'walk', {
+            t: lt * 1.6,
+            phase: (lt * 1.8) % 1,
+            dirtLevel: 0.8
+          });
+        }
 
-        // 倾盆狂风暴雨
-        D.rain(ctx, lt, 380, 0.65, 0.42);
-        D.splashes(ctx, lt, 810, 870, 45);
+        // 7. 前景雨幕分层：高速近景暴雨斜线 + 远景细密雨丝（拉开空间纵深）
+        D.rain(ctx, lt, 180, 0.25, 0.42, 12); // 远景细雨
+        D.rain(ctx, lt * 1.4, 260, 0.55, 0.45, 5); // 近景疾风骤雨
+        D.splashes(ctx, lt, 810, 890, 55, 17); // 地面密集水花
 
-        D.post(ctx, lt, { vig: 0.75, grain: 0.08 });
+        // 8. 电影级风雨夜暗角与胶片颗粒
+        D.post(ctx, lt, { vig: 0.82, grain: 0.09 });
       }
     },
 
