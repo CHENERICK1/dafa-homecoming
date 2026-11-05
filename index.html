@@ -1,0 +1,1776 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>大发回家 · 纯代码程序化骨骼驱动剧场</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;color:#fff}
+#stage{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);aspect-ratio:16/9;width:min(100vw,177.78vh);background:#000;overflow:hidden}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+#subs{position:absolute;left:0;right:0;bottom:9%;text-align:center;pointer-events:none;padding:0 8%}
+#subline{display:inline-block;font-size:clamp(14px,2.3vw,30px);line-height:1.55;letter-spacing:.06em;color:#fffaf0;text-shadow:0 2px 6px rgba(0,0,0,.85),0 0 18px rgba(0,0,0,.5);opacity:0;transition:opacity .45s ease;white-space:pre-line}
+#subline.quote{font-style:normal;color:#fff3d6}
+#subline.big{font-size:clamp(20px,3.6vw,48px);letter-spacing:.14em;font-weight:300}
+#subline.show{opacity:1}
+#chapter{position:absolute;left:4%;top:6%;pointer-events:none;opacity:0;transition:opacity .8s;display:flex;flex-direction:column;gap:.3em}
+#chapter.show{opacity:1}
+#chno{font-size:clamp(10px,1.1vw,15px);letter-spacing:.35em;color:rgba(255,240,215,.75)}
+#chname{font-size:clamp(16px,2.2vw,30px);letter-spacing:.25em;color:#fff6e4;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+#start{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(30,24,18,.55),rgba(0,0,0,.92));z-index:5;transition:opacity .8s}
+#start.hide{opacity:0;pointer-events:none}
+.start-inner{text-align:center}
+.t1{font-size:clamp(34px,6vw,84px);letter-spacing:.3em;font-weight:300;color:#fff4dc}
+.t2{margin-top:.6em;font-size:clamp(13px,1.6vw,22px);letter-spacing:.2em;color:rgba(255,240,215,.8)}
+.t3{margin-top:1.4em;font-size:clamp(11px,1vw,14px);letter-spacing:.2em;color:rgba(255,255,255,.45)}
+#playbtn{margin-top:2em;font-size:clamp(14px,1.6vw,22px);padding:.7em 2.2em;border-radius:999px;border:1px solid rgba(255,230,190,.7);background:rgba(255,220,170,.08);color:#ffeccc;letter-spacing:.2em;cursor:pointer;transition:background .3s}
+#playbtn:hover{background:rgba(255,220,170,.22)}
+#ui{position:absolute;left:0;right:0;bottom:0;height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;background:linear-gradient(transparent,rgba(0,0,0,.65));opacity:0;transition:opacity .4s;z-index:4}
+#stage:hover #ui,#ui.force{opacity:1}
+#ui button{background:none;border:none;color:#fff;font-size:16px;cursor:pointer;width:28px}
+#bar{flex:1;height:6px;background:rgba(255,255,255,.2);border-radius:3px;position:relative;cursor:pointer}
+#fill{position:absolute;left:0;top:0;bottom:0;background:#ffd9a0;border-radius:3px;width:0}
+#marks{position:absolute;inset:0;pointer-events:none}
+#marks i{position:absolute;top:-3px;width:2px;height:12px;background:rgba(255,255,255,.55)}
+#time{font-size:12px;font-variant-numeric:tabular-nums;color:#eee;min-width:80px;text-align:right}
+body.noui #ui,body.noui #start{display:none}
+
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="chapter-overlay">
+    <div class="ch-badge" id="chBadge">第 一 幕</div>
+    <div class="ch-title" id="chTitle">汉阳初遇 · 守望相伴</div>
+  </div>
+  <div id="subs"><div id="subline"></div></div>
+  <div id="start">
+    <div class="start-inner">
+      <div class="t-main">大发回家</div>
+      <div class="t-sub">纯代码程序化骨骼驱动微电影</div>
+      <button class="btn-play" id="playBtn">▶ 开始放映</button>
+      <div class="t-hint">建议横屏 · 打开声音 · 零位图实时矢量解算</div>
+    </div>
+  </div>
+  <div id="ui">
+    <button id="btnPP" title="播放/暂停 (空格)">❚❚</button>
+    <div id="bar"><div id="fill"></div></div>
+    <span id="time">00:00 / 00:00</span>
+    <button id="btnMute" title="静音 (M)">♪</button>
+    <button id="btnFS" title="全屏 (F)">⛶</button>
+  </div>
+</div>
+
+
+
+
+
+
+<script>
+/* ===== engine.js ===== */
+/* 《大发回家》 纯代码程序化骨架引擎 (Vector Puppet Runtime Engine) */
+
+(function () {
+  const W = 1920, H = 1080;
+  const DF = window.DF || (window.DF = {});
+  DF.W = W;
+  DF.H = H;
+  DF.scenes = DF.scenes || [];
+
+  /* ---------- math & color helpers (for draw.js and dog.js) ---------- */
+  DF.clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+  DF.lerp = (a, b, k) => a + (b - a) * k;
+  DF.rng = function (seed) {
+    let s = seed >>> 0 || 1;
+    return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  };
+  DF.mix = (c1, c2, k) => {
+    const parse = (c) => {
+      if (typeof c === 'string' && c.startsWith('#')) {
+        return [1, 3, 5].map((i) => parseInt(c.substr(i, 2), 16));
+      }
+      return [128, 128, 128];
+    };
+    const a = parse(c1), b = parse(c2);
+    return 'rgb(' + a.map((v, i) => Math.round(DF.lerp(v, b[i], k))).join(',') + ')';
+  };
+
+  // 章节计算（延迟在 boot 时计算，确保 scenes 已注入）
+  DF.initTimeline = function () {
+    let totalDur = 0;
+    (DF.scenes || []).forEach((s) => {
+      s.start = totalDur;
+      totalDur += s.dur;
+    });
+    DF.totalDur = totalDur;
+  };
+
+  // DOM 元素
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const chBadge = document.getElementById("chBadge");
+  const chTitle = document.getElementById("chTitle");
+  const chOverlay = document.getElementById("chapter-overlay");
+  const subline = document.getElementById("subline");
+  const startEl = document.getElementById("start");
+  const playBtn = document.getElementById("playBtn");
+  const btnPP = document.getElementById("btnPP");
+  const btnMute = document.getElementById("btnMute");
+  const btnFS = document.getElementById("btnFS");
+  const bar = document.getElementById("bar");
+  const fill = document.getElementById("fill");
+  const timeEl = document.getElementById("time");
+  const stage = document.getElementById("stage");
+
+  let currentTime = 0;
+  let isPlaying = false;
+  let isMuted = false;
+  let lastTimestamp = 0;
+  let activeScene = null;
+  let curSubText = "";
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(r.width * dpr);
+    cv.height = Math.round(r.height * dpr);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function getSceneAt(t) {
+    for (let i = DF.scenes.length - 1; i >= 0; i--) {
+      if (t >= DF.scenes[i].start) return DF.scenes[i];
+    }
+    return DF.scenes[0];
+  }
+
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);
+  }
+
+  // 渲染主函数
+  function render(dt) {
+    const scene = getSceneAt(currentTime);
+    const lt = currentTime - scene.start;
+
+    // 章节切换
+    if (activeScene !== scene) {
+      activeScene = scene;
+      chBadge.textContent = scene.badge;
+      chTitle.textContent = scene.title;
+      chOverlay.classList.remove("show");
+      void chOverlay.offsetWidth;
+      chOverlay.classList.add("show");
+      playAudioForScene(scene.id);
+    }
+
+    // 字幕切换
+    let targetSub = "";
+    if (scene.subs) {
+      for (let i = 0; i < scene.subs.length; i++) {
+        const item = scene.subs[i];
+        if (lt >= item[0] && lt < item[1]) {
+          targetSub = item[2];
+          break;
+        }
+      }
+    }
+
+    if (targetSub !== curSubText) {
+      curSubText = targetSub;
+      if (targetSub) {
+        subline.textContent = targetSub;
+        subline.classList.remove("show");
+        void subline.offsetWidth;
+        subline.classList.add("show");
+      } else {
+        subline.classList.remove("show");
+      }
+    }
+
+    // 章节淡出
+    if (lt > 5.5) {
+      chOverlay.classList.remove("show");
+    }
+
+    // 画布变换与逐帧绘制
+    ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.save();
+    try {
+      scene.draw(ctx, lt, dt);
+    } catch (e) {
+      console.error("Draw scene error", e);
+    }
+    ctx.restore();
+
+    // 更新底部进度
+    const total = DF.totalDur || 84;
+    const pct = (currentTime / total) * 100;
+    fill.style.width = pct + "%";
+    timeEl.textContent = formatTime(currentTime) + " / " + formatTime(total);
+  }
+
+  // 动画主循环
+  function loop(timestamp) {
+    if (!DF.totalDur && DF.initTimeline) DF.initTimeline();
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const dt = Math.min(0.1, (timestamp - lastTimestamp) / 1000);
+    lastTimestamp = timestamp;
+
+    if (isPlaying) {
+      currentTime += dt;
+      const total = DF.totalDur || 84;
+      if (currentTime >= total) {
+        currentTime = total;
+        pause();
+      }
+    }
+
+    render(dt);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // 交互控制
+  function play() {
+    isPlaying = true;
+    btnPP.textContent = "❚❚";
+    startEl.classList.add("hide");
+    initAudio();
+  }
+
+  function pause() {
+    isPlaying = false;
+    btnPP.textContent = "▶";
+  }
+
+  function togglePlay() {
+    if (isPlaying) pause();
+    else play();
+  }
+
+  playBtn.addEventListener("click", play);
+  btnPP.addEventListener("click", togglePlay);
+
+  window.addEventListener("keydown", (e) => {
+    const total = DF.totalDur || 84;
+    if (e.code === "Space") {
+      e.preventDefault();
+      togglePlay();
+    } else if (e.code === "KeyF") {
+      toggleFullscreen();
+    } else if (e.code === "KeyM") {
+      toggleMute();
+    } else if (e.code === "ArrowRight") {
+      currentTime = Math.min(total, currentTime + 3);
+    } else if (e.code === "ArrowLeft") {
+      currentTime = Math.max(0, currentTime - 3);
+    }
+  });
+
+  bar.addEventListener("click", (e) => {
+    const total = DF.totalDur || 84;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    currentTime = ratio * total;
+  });
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+  btnFS.addEventListener("click", toggleFullscreen);
+
+  function toggleMute() {
+    isMuted = !isMuted;
+    btnMute.textContent = isMuted ? "✕" : "♪";
+    if (audioMaster) {
+      audioMaster.gain.setTargetAtTime(isMuted ? 0 : 0.45, audioCtx.currentTime, 0.1);
+    }
+  }
+  btnMute.addEventListener("click", toggleMute);
+
+  // Web Audio 配乐系统
+  let audioCtx = null, audioMaster = null, filterNode = null;
+  function initAudio() {
+    if (audioCtx) {
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      return;
+    }
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContext();
+    audioMaster = audioCtx.createGain();
+    audioMaster.gain.value = 0.45;
+    audioMaster.connect(audioCtx.destination);
+
+    // 环境粉红噪音生成器（模拟雨声/风声）
+    const bufferSize = audioCtx.sampleRate * 2;
+    const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+    const whiteNoise = audioCtx.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+    whiteNoise.loop = true;
+
+    filterNode = audioCtx.createBiquadFilter();
+    filterNode.type = "lowpass";
+    filterNode.frequency.value = 450;
+
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0.08;
+
+    whiteNoise.connect(filterNode);
+    filterNode.connect(noiseGain);
+    noiseGain.connect(audioMaster);
+    whiteNoise.start();
+
+    // 钢琴琶音步进器
+    startSequencer();
+  }
+
+  function playPiano(freq, time, dur = 2.5, vel = 0.45) {
+    if (!audioCtx || isMuted) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, time);
+
+    const sub = audioCtx.createOscillator();
+    sub.type = "triangle";
+    sub.frequency.setValueAtTime(freq * 2, time);
+    const subGain = audioCtx.createGain();
+    subGain.gain.setValueAtTime(vel * 0.25, time);
+    subGain.gain.exponentialRampToValueAtTime(0.001, time + dur * 0.6);
+
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(vel * 0.4, time + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+    osc.connect(gain);
+    sub.connect(subGain);
+    subGain.connect(gain);
+    gain.connect(audioMaster);
+
+    osc.start(time);
+    sub.start(time);
+    osc.stop(time + dur);
+    sub.stop(time + dur);
+  }
+
+  const NOTES = {
+    C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99
+  };
+
+  function playAudioForScene(sceneId) {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    if (sceneId === 's3' || sceneId === 's4') {
+      filterNode.frequency.setTargetAtTime(1400, now, 1.2); // 暴雨风声
+    } else {
+      filterNode.frequency.setTargetAtTime(500, now, 1.5);  // 柔和
+    }
+  }
+
+  function startSequencer() {
+    let beat = 0;
+    setInterval(() => {
+      if (!audioCtx || !isPlaying || isMuted) return;
+      const now = audioCtx.currentTime;
+      const s = getSceneAt(currentTime);
+      if (s.id === 's1' || s.id === 's2') {
+        const chord = [NOTES.C4, NOTES.E4, NOTES.G4, NOTES.B4, NOTES.A4, NOTES.C5];
+        playPiano(chord[beat % chord.length], now, 2.8, 0.45);
+      } else if (s.id === 's3' || s.id === 's4') {
+        const chord = [NOTES.A3, NOTES.E4, NOTES.C4, NOTES.D4];
+        playPiano(chord[beat % chord.length], now, 3.2, 0.35);
+      } else if (s.id === 's5') {
+        const chord = [NOTES.F4, NOTES.A4, NOTES.C5, NOTES.E5];
+        playPiano(chord[beat % chord.length], now, 2.5, 0.5);
+      } else if (s.id === 's6') {
+        // 重逢大团圆和弦
+        playPiano(NOTES.C4, now, 4.0, 0.6);
+        playPiano(NOTES.G4, now + 0.12, 3.5, 0.5);
+        playPiano(NOTES.E5, now + 0.24, 3.5, 0.55);
+      }
+      beat++;
+    }, 1800);
+  }
+
+})();
+
+
+/* ===== draw.js ===== */
+/* 《大发回家》 shared drawing helpers (1920x1080 virtual canvas) */
+(function () {
+  const { W, H } = DF;
+  const D = (DF.D = {});
+
+  /* ---------- background ---------- */
+  D.sky = function (ctx, stops) {             // stops: [[pos,color],...]
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    stops.forEach((s) => g.addColorStop(s[0], s[1]));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  };
+  D.glow = function (ctx, x, y, r, color, a = 1) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save(); ctx.globalAlpha *= a; ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore();
+  };
+  D.moon = function (ctx, x, y, r, a = 1) {
+    D.glow(ctx, x, y, r * 6, 'rgba(190,210,255,0.25)', a);
+    ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = '#f4f1e2';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(200,195,175,0.35)';
+    ctx.beginPath(); ctx.arc(x - r * 0.3, y - r * 0.2, r * 0.22, 0, 7); ctx.arc(x + r * 0.35, y + r * 0.3, r * 0.15, 0, 7); ctx.fill();
+    ctx.restore();
+  };
+  D.stars = function (ctx, n, seed, t, a = 1, maxY = H * 0.6) {
+    const r = DF.rng(seed);
+    ctx.save(); ctx.fillStyle = '#fff';
+    for (let i = 0; i < n; i++) {
+      const x = r() * W, y = r() * maxY, s = r() * 1.8 + 0.4, ph = r() * 6;
+      ctx.globalAlpha = a * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 1.5 + ph)));
+      ctx.fillRect(x, y, s, s);
+    }
+    ctx.restore();
+  };
+  /* rolling hill band. y = baseline, amp, freq, color */
+  D.hills = function (ctx, y, amp, freq, color, seed = 1, offset = 0) {
+    const r = DF.rng(seed); const p1 = r() * 6, p2 = r() * 6;
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, H);
+    for (let x = 0; x <= W + 20; x += 20) {
+      const u = (x + offset) / W;
+      ctx.lineTo(x, y - amp * (0.6 * Math.sin(u * freq * 6.28 + p1) + 0.4 * Math.sin(u * freq * 2.3 * 6.28 + p2)));
+    }
+    ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+  };
+  D.ground = function (ctx, y, c1, c2) {
+    const g = ctx.createLinearGradient(0, y, 0, H);
+    g.addColorStop(0, c1); g.addColorStop(1, c2);
+    ctx.fillStyle = g; ctx.fillRect(0, y, W, H - y);
+  };
+
+  /* ---------- weather / particles ---------- */
+  D.rain = function (ctx, t, n = 260, a = 0.35, slant = 0.25, seed = 7) {
+    const r = DF.rng(seed);
+    ctx.save(); ctx.strokeStyle = 'rgba(200,215,240,' + a + ')'; ctx.lineWidth = 1.6; ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const sp = 1400 + r() * 900, len = 24 + r() * 30, x0 = r() * (W + 400) - 200, ph = r();
+      const y = ((ph * H * 1.3 + t * sp) % (H * 1.3)) - 100;
+      const x = x0 + y * slant;
+      ctx.moveTo(x, y); ctx.lineTo(x + len * slant, y + len);
+    }
+    ctx.stroke(); ctx.restore();
+  };
+  D.splashes = function (ctx, t, y0, y1, n = 40, seed = 9) {
+    const r = DF.rng(seed);
+    ctx.save(); ctx.strokeStyle = 'rgba(210,225,245,0.35)'; ctx.lineWidth = 1.2;
+    for (let i = 0; i < n; i++) {
+      const x = r() * W, y = y0 + r() * (y1 - y0), ph = r(), k = ((t * 2 + ph) % 1);
+      ctx.globalAlpha = 1 - k;
+      ctx.beginPath(); ctx.ellipse(x, y, 4 + k * 14, (4 + k * 14) * 0.3, 0, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+  };
+  /* floating particles (petals, leaves, snow, dust, fireflies) */
+  D.drift = function (ctx, t, n, seed, opt) {
+    const r = DF.rng(seed);
+    const o = Object.assign({ color: '#fff', size: 4, vy: 40, vx: 20, sway: 30, shape: 'dot', a: 0.8, glow: false }, opt);
+    ctx.save();
+    for (let i = 0; i < n; i++) {
+      const x0 = r() * W, y0 = r() * H, sp = 0.5 + r(), ph = r() * 6, sz = o.size * (0.5 + r());
+      let x = (x0 + t * o.vx * sp + Math.sin(t * 0.8 + ph) * o.sway) % (W + 40);
+      let y = (y0 + t * o.vy * sp) % (H + 40);
+      if (x < -20) x += W + 40; if (y < -20) y += H + 40;
+      ctx.globalAlpha = o.a * (o.glow ? 0.4 + 0.6 * Math.max(0, Math.sin(t * 2 + ph)) : 1);
+      ctx.fillStyle = Array.isArray(o.color) ? o.color[i % o.color.length] : o.color;
+      if (o.glow) D.glow(ctx, x, y, sz * 5, o.color, ctx.globalAlpha);
+      ctx.save(); ctx.translate(x - 20, y - 20); ctx.rotate(t * sp + ph);
+      if (o.shape === 'petal') { ctx.beginPath(); ctx.ellipse(0, 0, sz * 1.4, sz * 0.7, 0, 0, 7); ctx.fill(); }
+      else if (o.shape === 'leaf') { ctx.beginPath(); ctx.moveTo(-sz * 1.5, 0); ctx.quadraticCurveTo(0, -sz, sz * 1.5, 0); ctx.quadraticCurveTo(0, sz, -sz * 1.5, 0); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(0, 0, sz, 0, 7); ctx.fill(); }
+      ctx.restore();
+    }
+    ctx.restore();
+  };
+
+  /* ---------- post effects ---------- */
+  let grainCanvas = null;
+  function makeGrain() {
+    grainCanvas = document.createElement('canvas'); grainCanvas.width = grainCanvas.height = 256;
+    const g = grainCanvas.getContext('2d'); const id = g.createImageData(256, 256); const r = DF.rng(42);
+    for (let i = 0; i < id.data.length; i += 4) { const v = 110 + r() * 145; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; }
+    g.putImageData(id, 0, 0);
+  }
+  D.grain = function (ctx, t, a = 0.07) {
+    if (!grainCanvas) makeGrain();
+    ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = 'overlay';
+    const ox = Math.floor((t * 60) % 4) * 61, oy = Math.floor((t * 60) % 3) * 83;
+    ctx.translate(-ox, -oy);
+    ctx.fillStyle = ctx.createPattern(grainCanvas, 'repeat'); ctx.fillRect(0, 0, W + 300, H + 300);
+    ctx.restore();
+  };
+  D.vignette = function (ctx, a = 0.55, color = '0,0,0') {
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.05);
+    g.addColorStop(0, 'rgba(' + color + ',0)'); g.addColorStop(1, 'rgba(' + color + ',' + a + ')');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  };
+  D.tint = function (ctx, color, a) { ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); ctx.restore(); };
+  D.letterbox = function (ctx, k) { if (k <= 0) return; ctx.fillStyle = '#000'; const h = 110 * k; ctx.fillRect(0, 0, W, h); ctx.fillRect(0, H - h, W, h); };
+  D.post = function (ctx, t, o = {}) { D.grain(ctx, t, o.grain != null ? o.grain : 0.07); D.vignette(ctx, o.vig != null ? o.vig : 0.55); };
+
+  /* ---------- camera ---------- */
+  D.cam = function (ctx, x, y, z, rot = 0) {   // zoom z around point (x,y) brought to screen center
+    ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.rotate(rot); ctx.translate(-x, -y);
+  };
+
+  /* ---------- props ---------- */
+  D.tree = function (ctx, x, y, s, color = '#2d3a2a', trunk = '#3a2c22', seed = 3, t = 0) {
+    const r = DF.rng(seed);
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = trunk; ctx.fillRect(-6, -90, 12, 90);
+    ctx.fillStyle = color; ctx.beginPath();
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * 6.28, rr = 38 + r() * 18, sw = Math.sin(t * 0.8 + i) * 2;
+      ctx.moveTo(Math.cos(a) * 34 + sw + rr, -130 + Math.sin(a) * 30);
+      ctx.arc(Math.cos(a) * 34 + sw, -130 + Math.sin(a) * 30, rr, 0, 7);
+    }
+    ctx.arc(0, -130, 50, 0, 7); ctx.fill();
+    ctx.restore();
+  };
+  D.bareTree = function (ctx, x, y, s, color, seed = 5) {
+    const r = DF.rng(seed);
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.strokeStyle = color; ctx.lineCap = 'round';
+    (function br(len, w, depth) {
+      ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -len); ctx.stroke();
+      if (depth <= 0) return;
+      ctx.save(); ctx.translate(0, -len);
+      const n = 2 + (r() > 0.6 ? 1 : 0);
+      for (let i = 0; i < n; i++) { ctx.save(); ctx.rotate((r() - 0.5) * 1.3); br(len * (0.6 + r() * 0.2), w * 0.65, depth - 1); ctx.restore(); }
+      ctx.restore();
+    })(70, 10, 5);
+    ctx.restore();
+  };
+  D.pole = function (ctx, x, y, h, color = '#2b2620') {
+    ctx.fillStyle = color; ctx.fillRect(x - 5, y - h, 10, h);
+    ctx.fillRect(x - 40, y - h + 20, 80, 6);
+  };
+  D.wires = function (ctx, x1, x2, y, sag, color = 'rgba(20,18,15,0.7)') {
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    for (let k = 0; k < 2; k++) { ctx.beginPath(); ctx.moveTo(x1, y + k * 14); ctx.quadraticCurveTo((x1 + x2) / 2, y + sag + k * 14, x2, y + k * 14); ctx.stroke(); }
+  };
+  /* cloth strip tied to a branch/pole; flutters with wind */
+  D.ribbon = function (ctx, x, y, t, len = 70, color = '#d9473d', wind = 1, glowA = 0) {
+    if (glowA > 0) D.glow(ctx, x + len * 0.4, y + 10, 80, 'rgba(255,170,120,0.7)', glowA);
+    ctx.save(); ctx.fillStyle = color; ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill();
+    const seg = 10, pts = [];
+    for (let i = 0; i <= seg; i++) {
+      const u = i / seg;
+      pts.push([x + u * len * wind * 0.9 + Math.sin(t * 5 - u * 4) * 3 * u, y + u * len * (1 - wind * 0.7) + Math.sin(t * 6.3 - u * 5) * 9 * u * wind]);
+    }
+    ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1] - 6 * (1 - i / seg * 0.4)) : ctx.moveTo(p[0], p[1] - 6)));
+    for (let i = seg; i >= 0; i--) ctx.lineTo(pts[i][0], pts[i][1] + 6 * (1 - i / seg * 0.4));
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  };
+  /* "寻狗启事" poster */
+  D.poster = function (ctx, x, y, s, rot = 0, a = 1, wet = 0) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s); ctx.globalAlpha *= a;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(-58, -76, 120, 160);
+    ctx.fillStyle = DF.mix('#fbf6e8', '#d8d2c0', wet); ctx.fillRect(-62, -80, 120, 160);
+    ctx.fillStyle = '#c62f2f'; ctx.font = 'bold 22px "Microsoft YaHei",sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('寻狗启事', -2, -52);
+    ctx.fillStyle = '#e9e1cc'; ctx.fillRect(-42, -40, 80, 58);
+    DF.dog && DF.dog.icon(ctx, -2, 6, 0.42);
+    ctx.fillStyle = '#c62f2f'; ctx.font = 'bold 17px "Microsoft YaHei",sans-serif'; ctx.fillText('悬赏 2000 元', -2, 44);
+    ctx.fillStyle = '#555'; ctx.font = '11px "Microsoft YaHei",sans-serif'; ctx.fillText('白色西高地 · 名叫大发', -2, 62);
+    ctx.fillText('联系电话 138****', -2, 75);
+    ctx.fillStyle = 'rgba(200,190,170,0.9)'; ctx.fillRect(-20, -86, 40, 12); // tape
+    ctx.restore();
+  };
+  D.redWall = function (ctx, x, y, w, h, seed = 11, light = 1) {
+    ctx.save(); ctx.fillStyle = DF.mix('#5a2a20', '#9c4a36', light); ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(40,20,14,0.5)'; ctx.lineWidth = 2;
+    for (let yy = y; yy < y + h; yy += 22) {
+      ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke();
+      const off = ((yy - y) / 22) % 2 ? 0 : 30;
+      for (let xx = x + off; xx < x + w; xx += 60) { ctx.beginPath(); ctx.moveTo(xx, yy); ctx.lineTo(xx, yy + 22); ctx.stroke(); }
+    }
+    const r = DF.rng(seed); ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let i = 0; i < 40; i++) ctx.fillRect(x + r() * w, y + r() * h, 30 + r() * 40, 8);
+    ctx.restore();
+  };
+  D.reeds = function (ctx, y, t, n = 120, color = '#8a7a52', seed = 13, h = 220, x0 = 0, x1 = W) {
+    const r = DF.rng(seed);
+    ctx.save(); ctx.strokeStyle = color; ctx.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const x = x0 + r() * (x1 - x0), hh = h * (0.6 + r() * 0.6), sw = Math.sin(t * 1.2 + x * 0.01) * 18 + (r() - 0.5) * 20;
+      ctx.lineWidth = 2 + r() * 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + sw * 0.3, y - hh * 0.5, x + sw, y - hh); ctx.stroke();
+      ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(x + sw, y - hh - 12, 5, 18, sw * 0.02, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+  };
+  D.grass = function (ctx, y, t, n = 200, color = '#2c3a24', seed = 17, h = 30) {
+    const r = DF.rng(seed);
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = r() * W, hh = h * (0.5 + r()), sw = Math.sin(t * 2 + x * 0.02) * 4;
+      ctx.moveTo(x, y + r() * 10); ctx.quadraticCurveTo(x + sw * 0.5, y - hh * 0.5, x + sw + (r() - 0.5) * 8, y - hh);
+    }
+    ctx.stroke(); ctx.restore();
+  };
+  /* simple building / window grid silhouette */
+  D.building = function (ctx, x, y, w, h, color, winColor, seed = 1, litRatio = 0.4, t = 0) {
+    ctx.fillStyle = color; ctx.fillRect(x, y - h, w, h);
+    if (!winColor) return;
+    const r = DF.rng(seed);
+    for (let yy = y - h + 18; yy < y - 20; yy += 34) for (let xx = x + 12; xx < x + w - 18; xx += 28) {
+      if (r() < litRatio) { ctx.fillStyle = winColor; ctx.globalAlpha = 0.6 + 0.4 * r(); ctx.fillRect(xx, yy, 14, 18); ctx.globalAlpha = 1; }
+    }
+  };
+  D.streetLamp = function (ctx, x, y, h, on = 1, color = 'rgba(255,200,120,0.9)') {
+    ctx.fillStyle = '#1d1a17'; ctx.fillRect(x - 4, y - h, 8, h);
+    ctx.fillRect(x - 4, y - h, 40, 6);
+    ctx.fillStyle = on ? '#ffe2a8' : '#555'; ctx.fillRect(x + 26, y - h + 6, 18, 8);
+    if (on) {
+      D.glow(ctx, x + 35, y - h + 12, 160, color, on);
+      ctx.save(); ctx.globalAlpha = 0.12 * on; ctx.fillStyle = '#ffd890';
+      ctx.beginPath(); ctx.moveTo(x + 28, y - h + 14); ctx.lineTo(x + 42, y - h + 14); ctx.lineTo(x + 140, y); ctx.lineTo(x - 70, y); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  };
+  /* rounded rect */
+  D.rr = function (ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  };
+  /* phone frame; content drawn by callback in local coords (0..w,0..h) */
+  D.phone = function (ctx, x, y, w, h, rot, contentFn) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 12;
+    ctx.fillStyle = '#16171a'; D.rr(ctx, -w / 2 - 14, -h / 2 - 14, w + 28, h + 28, 46); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.save(); D.rr(ctx, -w / 2, -h / 2, w, h, 34); ctx.clip(); ctx.translate(-w / 2, -h / 2);
+    contentFn && contentFn(ctx, w, h);
+    ctx.restore();
+    ctx.fillStyle = '#16171a'; D.rr(ctx, -50, -h / 2 + 10, 100, 26, 13); ctx.fill();
+    ctx.restore();
+  };
+  /* text drawn on canvas (titles / cards) */
+  D.text = function (ctx, str, x, y, size, color = '#fff', a = 1, o = {}) {
+    ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = color; ctx.textAlign = o.align || 'center'; ctx.textBaseline = 'middle';
+    ctx.font = (o.weight || '300') + ' ' + size + 'px "PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif';
+    if (o.spacing) { try { ctx.letterSpacing = o.spacing + 'px'; } catch (e) {} }
+    if (o.shadow) { ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = o.shadow; }
+    ctx.fillText(str, x, y); ctx.restore();
+  };
+  /* dashed route line between points with progress k (0..1) */
+  D.route = function (ctx, pts, k, color = '#ffcf8a', w = 5, dash = [14, 12]) {
+    let total = 0; const seglen = [];
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seglen.push(l); total += l; }
+    let rem = total * k;
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.setLineDash(dash); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    let end = pts[0];
+    for (let i = 1; i < pts.length && rem > 0; i++) {
+      const l = seglen[i - 1], u = Math.min(1, rem / l);
+      end = [DF.lerp(pts[i - 1][0], pts[i][0], u), DF.lerp(pts[i - 1][1], pts[i][1], u)];
+      ctx.lineTo(end[0], end[1]); rem -= l;
+    }
+    ctx.stroke(); ctx.restore();
+    return end;
+  };
+  D.pointOn = function (pts, k) {            // position along polyline
+    let total = 0; const L = [];
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); L.push(l); total += l; }
+    let rem = total * DF.clamp(k);
+    for (let i = 1; i < pts.length; i++) {
+      if (rem <= L[i - 1]) { const u = rem / L[i - 1]; return [DF.lerp(pts[i - 1][0], pts[i][0], u), DF.lerp(pts[i - 1][1], pts[i][1], u), Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0])]; }
+      rem -= L[i - 1];
+    }
+    const n = pts.length - 1; return [pts[n][0], pts[n][1], 0];
+  };
+})();
+
+
+/* ===== dog.js ===== */
+/* 《大发回家》 - 西高地白梗「大发」纯 Canvas 2D 骨骼关节驱动模块
+   - 真关节层级树 (Hierarchical Skeleton Rig):
+     root (pelvis/hips) -> spine -> chest -> neck -> head -> muzzle / ears
+     front legs: shoulder -> forearm -> wrist -> paw (left/right)
+     back legs: hip -> thigh -> shin -> hock -> paw (left/right)
+     tail: tail0 -> tail1 -> tail2 (wagging physics)
+   - 步态解算器 (Gait Engine): walk, trot, gallop, sniff, sit, lie, wag, shiver
+   - 西高地特征: 标志性长腿、奶油白毛发簇、黑鼻头、深色豆豆眼、胡子脸、竖耳
+*/
+
+(function () {
+  const DF = window.DF || (window.DF = {});
+  const dog = (DF.dog = {});
+
+  // 辅助插值
+  const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, k) => a + (b - a) * k;
+
+  // 西高地毛发簇程序化生成器
+  function drawFluff(ctx, x, y, r, n = 8, color = '#f7f4ea', angleOffset = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 蓬松毛发外缘小毛刺
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + angleOffset;
+      const spikeR = r * (1 + 0.28 * Math.sin(i * 3.7 + angleOffset));
+      const px = Math.cos(a) * spikeR;
+      const py = Math.sin(a) * spikeR;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 骨骼关节姿态计算器 (Rig Engine)
+  function computePose(phase, state, t = 0) {
+    // 基础默认骨骼旋转弧度
+    let p = {
+      torsoPitch: 0,
+      torsoY: 0,
+      neckAngle: -0.35,
+      headAngle: 0.15,
+      snoutAngle: 0,
+      tailRot0: 0.5,
+      tailRot1: 0.3,
+      tailRot2: 0.2,
+      earRotL: 0,
+      earRotR: 0,
+      // 前后肢角度 (前L, 前R, 后L, 后R)
+      frontThighL: 0, frontShinL: 0, frontPawL: 0,
+      frontThighR: 0, frontShinR: 0, frontPawR: 0,
+      backThighL: 0, backShinL: 0, backPawL: 0,
+      backThighR: 0, backShinR: 0, backPawR: 0,
+      shiver: 0,
+      blink: 0
+    };
+
+    // 眨眼微动 (每 4-5 秒眨一次)
+    const blinkCycle = (t * 0.4) % 1;
+    if (blinkCycle < 0.04) p.blink = 1;
+
+    if (state === 'walk') {
+      // 四足对称对角对侧对偶步态
+      const ph = phase * Math.PI * 2;
+      p.torsoY = Math.abs(Math.sin(ph * 2)) * 5;
+      p.torsoPitch = Math.sin(ph) * 0.05;
+
+      // 前腿交替
+      p.frontThighL = Math.sin(ph) * 0.45;
+      p.frontShinL = Math.max(0, -Math.sin(ph)) * 0.5;
+      p.frontThighR = Math.sin(ph + Math.PI) * 0.45;
+      p.frontShinR = Math.max(0, -Math.sin(ph + Math.PI)) * 0.5;
+
+      // 后腿交替 (相位偏移 1.2 rad)
+      p.backThighL = Math.sin(ph + 1.2) * 0.4;
+      p.backShinL = Math.max(0, -Math.sin(ph + 1.2)) * 0.45;
+      p.backThighR = Math.sin(ph + 1.2 + Math.PI) * 0.4;
+      p.backShinR = Math.max(0, -Math.sin(ph + 1.2 + Math.PI)) * 0.45;
+
+      // 尾巴自然晃动
+      p.tailRot0 = 0.4 + Math.sin(ph * 2) * 0.25;
+      p.tailRot1 = 0.2 + Math.sin(ph * 2 - 0.5) * 0.2;
+      // 耳朵微晃
+      p.earRotL = Math.sin(ph * 2) * 0.08;
+      p.earRotR = Math.sin(ph * 2 + 0.3) * 0.08;
+
+    } else if (state === 'run' || state === 'trot') {
+      // 飞奔/小跑步态：悬空与落地下沉、大幅度摆动
+      const ph = phase * Math.PI * 2;
+      p.torsoY = Math.sin(ph) * 14 - 4;
+      p.torsoPitch = Math.sin(ph) * 0.12;
+
+      p.frontThighL = Math.sin(ph) * 0.95;
+      p.frontShinL = Math.sin(ph) > 0 ? 0.8 : 0.1;
+      p.frontThighR = Math.sin(ph + Math.PI * 0.85) * 0.95;
+      p.frontShinR = Math.sin(ph + Math.PI * 0.85) > 0 ? 0.8 : 0.1;
+
+      p.backThighL = Math.sin(ph + 2.2) * 0.85;
+      p.backShinL = Math.sin(ph + 2.2) > 0 ? 0.7 : -0.2;
+      p.backThighR = Math.sin(ph + 2.2 + Math.PI * 0.85) * 0.85;
+      p.backShinR = Math.sin(ph + 2.2 + Math.PI * 0.85) > 0 ? 0.7 : -0.2;
+
+      // 颈部与头部迎风俯仰
+      p.neckAngle = -0.45 + Math.sin(ph) * 0.1;
+      p.headAngle = 0.2 + Math.sin(ph) * 0.08;
+
+      // 尾巴向后绷直微翘
+      p.tailRot0 = 0.15 + Math.sin(ph * 2) * 0.2;
+      p.tailRot1 = 0.1 + Math.sin(ph * 2 - 0.4) * 0.15;
+      p.tailRot2 = 0.1 + Math.sin(ph * 2 - 0.8) * 0.15;
+
+      p.earRotL = -0.25 + Math.sin(ph) * 0.15;
+      p.earRotR = -0.22 + Math.sin(ph + 0.2) * 0.15;
+
+    } else if (state === 'sniff') {
+      // 驻足仰头/探鼻嗅闻
+      const breathe = Math.sin(t * 3) * 0.08;
+      p.torsoPitch = -0.05;
+      // 仰头探身角度
+      p.neckAngle = -0.7 + breathe * 0.5;
+      p.headAngle = -0.3 + Math.sin(t * 4) * 0.12;
+      p.snoutAngle = Math.sin(t * 12) * 0.04; // 鼻尖抽动抽嗅
+
+      // 四肢稳稳支撑，前肢稍微踮起
+      p.frontThighL = 0.15; p.frontShinL = -0.1;
+      p.frontThighR = 0.08; p.frontShinR = -0.05;
+      p.backThighL = -0.12; p.backShinL = 0.15;
+      p.backThighR = -0.08; p.backShinR = 0.12;
+
+      // 尾巴轻轻翘起试探性微摆
+      p.tailRot0 = 0.65 + Math.sin(t * 6) * 0.2;
+      p.tailRot1 = 0.35 + Math.sin(t * 6 - 0.3) * 0.2;
+      p.earRotL = 0.15 + Math.sin(t * 2) * 0.06;
+      p.earRotR = 0.12 + Math.sin(t * 2.2) * 0.06;
+
+    } else if (state === 'wag' || state === 'reunion') {
+      // 狂摇尾巴大重逢！全身螺旋桨剧烈摇摆、前脚激动踏步
+      const wagPh = t * 24; // 极高频甩动
+      const stepPh = t * 8; // 碎步踏脚
+
+      p.torsoY = Math.abs(Math.sin(stepPh)) * 4;
+      p.torsoPitch = Math.sin(stepPh) * 0.08;
+
+      // 尾巴大幅度扇动
+      p.tailRot0 = 0.5 + Math.sin(wagPh) * 0.95;
+      p.tailRot1 = 0.3 + Math.sin(wagPh - 0.6) * 0.85;
+      p.tailRot2 = 0.2 + Math.sin(wagPh - 1.2) * 0.75;
+
+      // 激动小碎步
+      p.frontThighL = Math.sin(stepPh) * 0.3;
+      p.frontShinL = Math.max(0, -Math.sin(stepPh)) * 0.4;
+      p.frontThighR = Math.sin(stepPh + Math.PI) * 0.3;
+      p.frontShinR = Math.max(0, -Math.sin(stepPh + Math.PI)) * 0.4;
+
+      p.backThighL = -0.1; p.backShinL = 0.1;
+      p.backThighR = -0.05; p.backShinR = 0.05;
+
+      // 兴奋仰头、耳朵欢快立起摇晃
+      p.neckAngle = -0.55;
+      p.headAngle = 0.35 + Math.sin(t * 6) * 0.1;
+      p.earRotL = 0.2 + Math.sin(t * 12) * 0.15;
+      p.earRotR = 0.2 + Math.sin(t * 12 + 0.4) * 0.15;
+
+      // 寒冷颤抖加激动
+      p.shiver = Math.sin(t * 36) * 1.5;
+
+    } else if (state === 'lie' || state === 'sleep') {
+      // 趴伏在脚背/婴儿床边安睡
+      const breathe = Math.sin(t * 1.5) * 3;
+      p.torsoY = 16 + breathe;
+      p.torsoPitch = 0.05;
+
+      // 四肢收拢趴下
+      p.frontThighL = 1.1; p.frontShinL = -1.2; p.frontPawL = 0.3;
+      p.frontThighR = 1.0; p.frontShinR = -1.1; p.frontPawR = 0.2;
+      p.backThighL = -1.0; p.backShinL = 1.3; p.backPawL = -0.3;
+      p.backThighR = -0.9; p.backShinR = 1.2; p.backPawR = -0.2;
+
+      // 头部贴地
+      p.neckAngle = 0.2;
+      p.headAngle = -0.3 + Math.sin(t * 0.8) * 0.03;
+      p.blink = 1; // 眼睛闭合安睡
+
+      p.tailRot0 = 0.8;
+      p.tailRot1 = 0.4 + Math.sin(t * 1.2) * 0.08;
+      p.earRotL = -0.15; p.earRotR = -0.12;
+
+    } else {
+      // idle 站立呼吸微动
+      const breathe = Math.sin(t * 2) * 0.04;
+      p.torsoY = Math.sin(t * 2) * 2;
+      p.neckAngle = -0.35 + breathe;
+      p.headAngle = 0.15 - breathe;
+      p.tailRot0 = 0.5 + Math.sin(t * 3) * 0.15;
+      p.tailRot1 = 0.25 + Math.sin(t * 3 - 0.4) * 0.12;
+    }
+
+    return p;
+  }
+
+  // 绘制一只腿 (上肢/下肢/爪)
+  function drawLeg(ctx, thighL, shinL, pawL, thighA, shinA, pawA, isFront, color = '#f5f2e8', dirt = 0) {
+    ctx.save();
+    ctx.rotate(thighA);
+
+    // 大腿/上臂
+    const thighW = isFront ? 14 : 18;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(0, thighL * 0.5, thighW * 0.5, thighL * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 关节转到小腿
+    ctx.translate(0, thighL);
+    ctx.rotate(shinA);
+
+    // 小腿
+    const shinW = isFront ? 10 : 12;
+    ctx.fillStyle = dirt > 0.4 ? DF.mix(color, '#6e5843', dirt * 0.6) : color;
+    ctx.beginPath();
+    ctx.ellipse(0, shinL * 0.5, shinW * 0.5, shinL * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 关节转到脚掌
+    ctx.translate(0, shinL);
+    ctx.rotate(pawA);
+
+    // 脚爪 (白西高地圆爪，流浪时带泥斑)
+    ctx.fillStyle = dirt > 0.2 ? DF.mix(color, '#5a4634', dirt * 0.8) : color;
+    ctx.beginPath();
+    ctx.ellipse(3, pawL * 0.4, 8, 5, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // 核心绘制入口
+  dog.draw = function (ctx, x, y, scale = 1, dir = 1, animState = 'trot', options = {}) {
+    const t = options.t || 0;
+    const phase = options.phase != null ? options.phase : (t * 2.2) % 1;
+    const dirt = options.dirtLevel || 0; // 0=干净家犬, 1=浑身草籽泥水
+    const coatBase = options.coatColor || '#f9f6ed';
+    const coatShadow = '#e2dac6';
+
+    const pose = computePose(phase, animState, t);
+
+    ctx.save();
+    ctx.translate(x, y + pose.shiver);
+    ctx.scale(dir * scale, scale);
+
+    // 1. 投影（软阴影）
+    ctx.save();
+    ctx.fillStyle = 'rgba(20, 15, 10, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(0, 48, 46 * (1 - pose.torsoY * 0.015), 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 2. 远侧后腿 (Right Back Leg)
+    ctx.save();
+    ctx.translate(-24, 0 + pose.torsoY);
+    drawLeg(ctx, 28, 30, 8, pose.backThighR, pose.backShinR, pose.backPawR, false, coatShadow, dirt);
+    ctx.restore();
+
+    // 3. 远侧前腿 (Right Front Leg)
+    ctx.save();
+    ctx.translate(22, -4 + pose.torsoY);
+    drawLeg(ctx, 26, 28, 8, pose.frontThighR, pose.frontShinR, pose.frontPawR, true, coatShadow, dirt);
+    ctx.restore();
+
+    // 4. 躯干主干 (Torso & Pelvis)
+    ctx.save();
+    ctx.translate(0, pose.torsoY);
+    ctx.rotate(pose.torsoPitch);
+
+    // 尾巴 (3节铰链骨骼)
+    ctx.save();
+    ctx.translate(-32, -10);
+    ctx.rotate(pose.tailRot0);
+    ctx.fillStyle = coatBase;
+    ctx.beginPath();
+    ctx.ellipse(-8, -4, 12, 6, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(-14, -8);
+    ctx.rotate(pose.tailRot1);
+    ctx.beginPath();
+    ctx.ellipse(-8, -3, 10, 5, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.translate(-12, -6);
+    ctx.rotate(pose.tailRot2);
+    ctx.beginPath();
+    ctx.ellipse(-7, -2, 8, 4, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore(); // 尾巴结束
+
+    // 躯干肉体
+    ctx.fillStyle = coatBase;
+    ctx.beginPath();
+    // 饱满长椭圆身躯
+    ctx.ellipse(0, -6, 36, 21, 0.05, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 背部与腹部毛流感
+    drawFluff(ctx, -10, -8, 20, 10, coatBase, t);
+    drawFluff(ctx, 12, -7, 18, 9, coatBase, t * 1.2);
+
+    // 流浪期的泥巴斑块与枯草籽
+    if (dirt > 0.15) {
+      ctx.fillStyle = 'rgba(78, 56, 38, ' + (dirt * 0.75) + ')';
+      ctx.beginPath();
+      ctx.arc(-8, -2, 5, 0, 7);
+      ctx.arc(10, 4, 7, 0, 7);
+      ctx.arc(-18, 3, 6, 0, 7);
+      ctx.fill();
+
+      // 苍耳草籽 (小绿褐色点)
+      ctx.fillStyle = '#4a542a';
+      ctx.beginPath();
+      ctx.arc(4, -18, 2.5, 0, 7);
+      ctx.arc(-14, -14, 2.2, 0, 7);
+      ctx.arc(18, -12, 2.8, 0, 7);
+      ctx.fill();
+    }
+
+    // 5. 颈部与头部 (Neck & Head Rig)
+    ctx.save();
+    ctx.translate(26, -16);
+    ctx.rotate(pose.neckAngle);
+
+    // 脖颈
+    ctx.fillStyle = coatBase;
+    ctx.beginPath();
+    ctx.ellipse(0, -8, 14, 18, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 转到头部
+    ctx.translate(2, -18);
+    ctx.rotate(pose.headAngle);
+
+    // 头颅圆毛球
+    drawFluff(ctx, 0, 0, 19, 12, coatBase, t * 0.8);
+
+    // 西高地标志性竖耳 (Ears)
+    // 远侧耳
+    ctx.save();
+    ctx.translate(-6, -16);
+    ctx.rotate(pose.earRotR - 0.2);
+    ctx.fillStyle = coatShadow;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(8, -20);
+    ctx.lineTo(16, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 近侧耳
+    ctx.save();
+    ctx.translate(2, -17);
+    ctx.rotate(pose.earRotL);
+    ctx.fillStyle = coatBase;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(9, -23);
+    ctx.lineTo(18, 3);
+    ctx.closePath();
+    ctx.fill();
+    // 耳芯浅粉色
+    ctx.fillStyle = 'rgba(235, 180, 175, 0.5)';
+    ctx.beginPath();
+    ctx.moveTo(3, -2);
+    ctx.lineTo(9, -18);
+    ctx.lineTo(14, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 口鼻部 (Muzzle & Snout)
+    ctx.save();
+    ctx.translate(14, 2);
+    ctx.rotate(pose.snoutAngle);
+
+    // 标志性蓬松胡子簇 (Muzzle Beard)
+    drawFluff(ctx, 4, 3, 11, 8, coatBase, 0.5);
+
+    // 黑亮湿润的鼻头
+    ctx.fillStyle = '#181512';
+    ctx.beginPath();
+    ctx.ellipse(12, 0, 4.5, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 鼻尖高光
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(11, -1.2, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore(); // 口鼻部结束
+
+    // 眼睛 (黑曜石灵动豆豆眼)
+    if (pose.blink) {
+      // 闭眼弧线
+      ctx.strokeStyle = '#221e1a';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(8, -4, 4, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#1c1713';
+      ctx.beginPath();
+      ctx.arc(8, -4, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      // 眼神高光
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(7, -5.5, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore(); // 头部结束
+    ctx.restore(); // 躯干结束
+
+    // 6. 近侧后腿 (Left Back Leg)
+    ctx.save();
+    ctx.translate(-20, 2 + pose.torsoY);
+    drawLeg(ctx, 28, 30, 8, pose.backThighL, pose.backShinL, pose.backPawL, false, coatBase, dirt);
+    ctx.restore();
+
+    // 7. 近侧前腿 (Left Front Leg)
+    ctx.save();
+    ctx.translate(26, -2 + pose.torsoY);
+    drawLeg(ctx, 26, 28, 8, pose.frontThighL, pose.frontShinL, pose.frontPawL, true, coatBase, dirt);
+    ctx.restore();
+
+    ctx.restore();
+  };
+
+  // 寻狗启事上的矢量小头像辅助函数
+  dog.icon = function (ctx, x, y, s = 0.5) {
+    dog.draw(ctx, x, y, s, 1, 'idle', { t: 0, dirtLevel: 0 });
+  };
+
+})();
+
+
+/* ===== people.js ===== */
+/* 《大发回家》 - 角色矢量骨骼绘制模块 (People & Props Rig)
+   - 建筑师阿沐 (眼镜、围巾、风衣)
+   - 妻子婉儿 (大衣、马尾)
+   - 婴儿车/婴儿摇篮
+   - 手电筒锥形光斑与阴影投射
+*/
+
+(function () {
+  const DF = window.DF || (window.DF = {});
+  const people = (DF.people = {});
+
+  // 1. 绘制建筑师阿沐
+  people.drawAmu = function (ctx, x, y, scale = 1, dir = 1, pose = 'stand', t = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir * scale, scale);
+
+    const breathe = Math.sin(t * 2) * 2;
+
+    if (pose === 'search') {
+      // 雨夜打手电筒焦急搜寻
+      // 腿部微屈
+      ctx.fillStyle = '#1c222b';
+      ctx.fillRect(-14, -80, 12, 80); // 后腿
+      ctx.fillRect(4, -80, 12, 80);  // 前腿
+
+      // 躯干风衣
+      ctx.save();
+      ctx.translate(0, -80 + breathe);
+      ctx.rotate(0.12);
+      ctx.fillStyle = '#2b3847';
+      ctx.beginPath();
+      ctx.moveTo(-16, 0);
+      ctx.lineTo(18, 0);
+      ctx.lineTo(26, 68);
+      ctx.lineTo(-22, 68);
+      ctx.closePath();
+      ctx.fill();
+
+      // 围巾迎风飘展
+      ctx.fillStyle = '#8b4513';
+      ctx.beginPath();
+      ctx.moveTo(-4, -10);
+      ctx.lineTo(-28 + Math.sin(t * 6) * 6, 15);
+      ctx.lineTo(-24 + Math.sin(t * 6) * 6, 25);
+      ctx.lineTo(0, 0);
+      ctx.fill();
+
+      // 手持手电筒的前臂
+      ctx.save();
+      ctx.translate(14, 18);
+      ctx.rotate(-0.35 + Math.sin(t * 3) * 0.05); // 晃动手电筒
+      ctx.fillStyle = '#242f3d';
+      ctx.fillRect(0, -6, 32, 12);
+      // 手电筒筒身
+      ctx.fillStyle = '#dcdde1';
+      ctx.fillRect(30, -9, 16, 18);
+
+      // 手电筒巨大光锥 (Volumetric Light Cone)
+      ctx.save();
+      const g = ctx.createRadialGradient(46, 0, 10, 46, 0, 800);
+      g.addColorStop(0, 'rgba(255, 245, 200, 0.85)');
+      g.addColorStop(0.2, 'rgba(255, 235, 170, 0.45)');
+      g.addColorStop(0.8, 'rgba(255, 220, 140, 0.08)');
+      g.addColorStop(1, 'rgba(255, 220, 140, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(46, 0);
+      ctx.lineTo(950, -220);
+      ctx.lineTo(950, 260);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore(); // 手臂结束
+
+      // 头部 (戴眼镜)
+      ctx.save();
+      ctx.translate(2, -22);
+      ctx.rotate(0.1);
+      // 脸
+      ctx.fillStyle = '#f0d9c0';
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+      // 头发
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(0, -4, 15, Math.PI * 0.8, Math.PI * 2.2);
+      ctx.fill();
+      // 眼镜边框
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1.8;
+      ctx.strokeRect(4, -3, 8, 7);
+      ctx.beginPath();
+      ctx.moveTo(12, 0); ctx.lineTo(15, -1);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.restore(); // 躯干结束
+
+    } else if (pose === 'crouch' || pose === 'beckon') {
+      // 撑伞蹲下招手唤狗
+      // 蹲姿腿
+      ctx.fillStyle = '#1c222b';
+      ctx.beginPath();
+      ctx.moveTo(-10, 0); ctx.lineTo(15, 0); ctx.lineTo(25, -28); ctx.lineTo(-15, -28);
+      ctx.fill();
+
+      // 躯干
+      ctx.save();
+      ctx.translate(0, -32 + breathe);
+      ctx.rotate(0.2);
+      ctx.fillStyle = '#2b3847';
+      ctx.fillRect(-14, -40, 28, 42);
+
+      // 伸出的前手招手
+      ctx.save();
+      ctx.translate(14, -20);
+      ctx.rotate(0.3 + Math.sin(t * 5) * 0.1);
+      ctx.fillStyle = '#f0d9c0';
+      ctx.beginPath();
+      ctx.arc(28, 0, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 雨伞手柄与巨大伞顶
+      ctx.save();
+      ctx.translate(-6, -42);
+      ctx.rotate(-0.1);
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 20); ctx.lineTo(0, -45);
+      ctx.stroke();
+      // 伞面 (深蓝大雨伞)
+      ctx.fillStyle = '#1e3799';
+      ctx.beginPath();
+      ctx.arc(0, -45, 75, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // 头部
+      ctx.fillStyle = '#f0d9c0';
+      ctx.beginPath();
+      ctx.arc(4, -54, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(4, -58, 14, Math.PI * 0.8, Math.PI * 2.2);
+      ctx.fill();
+      // 眼镜
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1.6;
+      ctx.strokeRect(8, -54, 7, 6);
+
+      ctx.restore();
+
+    } else {
+      // 正常站姿
+      ctx.fillStyle = '#1c222b';
+      ctx.fillRect(-12, -75, 10, 75);
+      ctx.fillRect(4, -75, 10, 75);
+      ctx.fillStyle = '#2b3847';
+      ctx.fillRect(-15, -145 + breathe, 30, 70);
+      ctx.fillStyle = '#f0d9c0';
+      ctx.beginPath();
+      ctx.arc(0, -160 + breathe, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(0, -164 + breathe, 15, Math.PI * 0.8, Math.PI * 2.2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  };
+
+  // 2. 绘制妻子婉儿
+  people.drawWan = function (ctx, x, y, scale = 1, dir = 1, pose = 'stand', t = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(dir * scale, scale);
+
+    const breathe = Math.sin(t * 2 + 1) * 2;
+
+    if (pose === 'embrace' || pose === 'weep_joy') {
+      // 清晨门前激动掩面/相拥
+      ctx.fillStyle = '#2f3542';
+      ctx.fillRect(-10, -70, 9, 70);
+      ctx.fillRect(3, -70, 9, 70);
+
+      // 暖黄色米白大衣
+      ctx.save();
+      ctx.translate(0, -70 + breathe);
+      ctx.fillStyle = '#f1f2f6';
+      ctx.beginPath();
+      ctx.moveTo(-14, 0); ctx.lineTo(16, 0); ctx.lineTo(24, 62); ctx.lineTo(-18, 62);
+      ctx.closePath();
+      ctx.fill();
+
+      // 双手掩面激动
+      ctx.save();
+      ctx.translate(10, -32);
+      ctx.fillStyle = '#ffdfba';
+      ctx.beginPath();
+      ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.arc(6, -2, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 头部与马尾辫
+      ctx.fillStyle = '#ffdfba';
+      ctx.beginPath();
+      ctx.arc(0, -42, 13, 0, Math.PI * 2);
+      ctx.fill();
+      // 黑色秀发与马尾
+      ctx.fillStyle = '#1e1e1e';
+      ctx.beginPath();
+      ctx.arc(0, -45, 14, Math.PI * 0.8, Math.PI * 2.2);
+      ctx.fill();
+      // 垂下马尾
+      ctx.beginPath();
+      ctx.ellipse(-14, -36 + Math.sin(t * 3) * 2, 6, 16, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+    } else {
+      ctx.fillStyle = '#2f3542';
+      ctx.fillRect(-10, -70, 9, 70);
+      ctx.fillRect(3, -70, 9, 70);
+      ctx.fillStyle = '#f1f2f6';
+      ctx.fillRect(-14, -135 + breathe, 28, 65);
+      ctx.fillStyle = '#ffdfba';
+      ctx.beginPath();
+      ctx.arc(0, -150 + breathe, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1e1e1e';
+      ctx.beginPath();
+      ctx.arc(0, -153 + breathe, 14, Math.PI * 0.8, Math.PI * 2.2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  };
+
+  // 3. 婴儿床与安睡小婴儿 (Crib & Baby)
+  people.drawCrib = function (ctx, x, y, scale = 1, t = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+
+    const rock = Math.sin(t * 1.5) * 0.02; // 婴儿床温柔轻晃
+    ctx.rotate(rock);
+
+    // 原木木腿
+    ctx.fillStyle = '#b78b58';
+    ctx.fillRect(-60, -20, 8, 70);
+    ctx.fillRect(52, -20, 8, 70);
+
+    // 婴儿床栅栏框
+    ctx.fillStyle = '#dfba87';
+    ctx.fillRect(-68, -75, 136, 55);
+
+    // 栏杆空隙
+    ctx.fillStyle = '#9e7343';
+    for (let i = -56; i <= 46; i += 18) {
+      ctx.fillRect(i, -70, 8, 45);
+    }
+
+    // 温暖的小棉被与婴儿圆脑袋
+    ctx.fillStyle = '#ffeaa7';
+    ctx.beginPath();
+    ctx.ellipse(0, -42, 48, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 宝宝露出的圆脸
+    ctx.fillStyle = '#ffd1b3';
+    ctx.beginPath();
+    ctx.arc(22, -46, 12, 0, Math.PI * 2);
+    ctx.fill();
+    // 闭眼睫毛
+    ctx.strokeStyle = '#8d5524';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(24, -45, 3.5, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+
+    ctx.restore();
+  };
+
+})();
+
+
+/* ===== scenes.js ===== */
+/* 《大发回家》 纯代码程序化骨骼驱动剧场 (Vector Puppet Movie Pipeline)
+   - 彻底摒弃任何位图轮播和Ken Burns PPT感！
+   - 全剧情 6 幕纯 Canvas 矢量实时渲染
+   - 角色骨骼驱动：大发 (DF.dog) 真实奔跑、驻足嗅闻、狂摇尾巴；阿沐/婉儿/婴儿床 (DF.people)
+   - 背景环境：纯 Canvas 程序化生成武汉老屋、官塘村荒野芦苇荡、暴雨车灯路牌、晨曦大门
+*/
+
+(function () {
+  const { W, H } = DF;
+  const D = DF.D;
+
+  // 6幕纯代码剧情
+  DF.scenes = [
+    // ----------------------------------------------------
+    // 第 1 幕：汉阳初遇 · 五载温情 (0 - 13s)
+    // ----------------------------------------------------
+    {
+      id: "s1",
+      badge: "第 一 幕",
+      title: "汉阳初遇 · 守望相伴",
+      dur: 13,
+      subs: [
+        [1.0, 6.0, "五年前，武汉汉阳街头撑开的大伞下……"],
+        [6.5, 12.0, "“就叫你大发吧，发发发。”从此，你成了家里的大儿子。"]
+      ],
+      draw: function (ctx, lt, dt) {
+        // 1. 汉阳暖色雨夜街头背景
+        D.sky(ctx, [[0, '#12151f'], [0.6, '#282b3d'], [1, '#423730']]);
+        D.streetLamp(ctx, 320, 820, 360, 1, 'rgba(255,200,120,0.85)');
+        D.building(ctx, 60, 820, 200, 480, '#1c1e28', '#ffd59e', 5, 0.45);
+        D.building(ctx, 1450, 820, 260, 420, '#181a24', '#ffc078', 8, 0.35);
+
+        // 地面与积水倒影
+        D.ground(ctx, 820, '#24201c', '#151210');
+        D.rain(ctx, lt, 220, 0.45, 0.2);
+        D.splashes(ctx, lt, 820, 880, 25);
+
+        // 2. 角色演出：阿沐撑伞蹲下唤狗，大发从小跑减速走近、摇尾巴蹭手
+        // 阿沐位置 (固定在 x=920, y=820)
+        DF.people.drawAmu(ctx, 920, 820, 1.25, -1, 'crouch', lt);
+
+        // 大发从画面左侧跑入，在阿沐手前停下并摇尾巴
+        let dogX = 180 + lt * 80;
+        let dogState = 'trot';
+        if (dogX > 780) {
+          dogX = 780;
+          dogState = 'wag'; // 走到跟前，欢快狂摇尾巴
+        } else if (dogX > 680) {
+          dogState = 'walk'; // 接近时放慢步伐
+        }
+        DF.dog.draw(ctx, dogX, 815, 1.0, 1, dogState, { t: lt, dirtLevel: 0.1 });
+
+        // 3. 电影级暗角与颗粒
+        D.post(ctx, lt, { vig: 0.55, grain: 0.05 });
+      }
+    },
+
+    // ----------------------------------------------------
+    // 第 2 幕：新成员到来 · 无声的守候 (13 - 26s)
+    // ----------------------------------------------------
+    {
+      id: "s2",
+      badge: "第 二 幕",
+      title: "新生命至 · 视线错落",
+      dur: 13,
+      subs: [
+        [1.0, 6.0, "五年后，家里迎来了啼哭的新生命。"],
+        [6.5, 12.0, "爸爸妈妈在忙碌，你默默趴在脚边，不懂自己还能退到哪里。"]
+      ],
+      draw: function (ctx, lt, dt) {
+        // 室内温暖柔光窗景
+        D.sky(ctx, [[0, '#3a352d'], [0.5, '#6d5a47'], [1, '#8e775d']]);
+        // 木地板
+        D.ground(ctx, 760, '#533c29', '#382618');
+
+        // 阳光透射与漂浮尘埃
+        D.glow(ctx, 1100, 480, 500, 'rgba(255, 235, 190, 0.35)');
+        D.drift(ctx, lt, 40, 12, { color: 'rgba(255,240,210,0.6)', vy: -20, vx: 15, size: 3 });
+
+        // 婴儿摇篮（在阳光下轻轻微晃）
+        DF.people.drawCrib(ctx, 1150, 750, 1.5, lt);
+
+        // 阿沐与婉儿轻抚婴儿背影
+        DF.people.drawAmu(ctx, 1340, 755, 1.35, -1, 'stand', lt * 0.8);
+        DF.people.drawWan(ctx, 980, 755, 1.3, 1, 'stand', lt * 0.8);
+
+        // 前景大发趴在狗碗旁（极低视角，眼神充满守候）
+        // 狗碗
+        ctx.fillStyle = '#95a5a6';
+        ctx.beginPath();
+        ctx.ellipse(360, 865, 30, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 大发安静趴着安睡/守望
+        DF.dog.draw(ctx, 480, 845, 1.45, 1, 'lie', { t: lt, dirtLevel: 0 });
+
+        D.post(ctx, lt, { vig: 0.45, grain: 0.04 });
+      }
+    },
+
+    // ----------------------------------------------------
+    // 第 3 幕：官塘村暮色 · 挣脱的断绳 (26 - 40s)
+    // ----------------------------------------------------
+    {
+      id: "s3",
+      badge: "第 三 幕",
+      title: "官塘暮色 · 奔向荒原",
+      dur: 14,
+      subs: [
+        [1.0, 6.0, "十月初，蔡甸官塘村乡下院落。你不知道什么是“只是几天”。"],
+        [6.5, 13.0, "夜里绳索崩断，你头也不回地扎进了茫茫无际的秋风荒原。"]
+      ],
+      draw: function (ctx, lt, dt) {
+        // 暮色灰蓝苍茫天空
+        D.sky(ctx, [[0, '#1c2836'], [0.4, '#39485c'], [0.8, '#7d6858'], [1, '#4a3d31']]);
+        D.hills(ctx, 740, 45, 2.5, '#2e382b', 4);
+
+        // 远景芦苇荡
+        D.reeds(ctx, 770, lt, 120, '#695938', 19, 180, 0, W);
+
+        // 地面
+        D.ground(ctx, 780, '#362f27', '#201b15');
+
+        // 左侧蔡甸老家红砖院门
+        D.redWall(ctx, -20, 380, 320, 420, 11, 0.7);
+
+        // 地面上崩断的麻绳
+        ctx.save();
+        ctx.strokeStyle = '#c2a677';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(180, 720);
+        ctx.quadraticCurveTo(240, 785, 290, 805);
+        ctx.stroke();
+        // 断口毛刺
+        ctx.fillStyle = '#dfc394';
+        for (let i = 0; i < 6; i++) {
+          ctx.fillRect(290 + i * 2, 803 + (i % 2) * 3, 3, 3);
+        }
+        ctx.restore();
+
+        // 大发从院门口爆发拔腿飞奔！四足大跨度飞跃 (gallop)
+        const runX = 320 + lt * 160;
+        // 奔跑时四爪溅起泥水颗粒
+        if (runX < W + 200) {
+          ctx.fillStyle = '#4a3826';
+          for (let k = 0; k < 5; k++) {
+            const sx = runX - 40 - Math.random() * 60;
+            const sy = 790 - Math.random() * 25;
+            ctx.fillRect(sx, sy, 4, 3);
+          }
+          DF.dog.draw(ctx, runX, 770, 1.25, 1, 'run', { t: lt * 2.8, phase: (lt * 3.5) % 1, dirtLevel: 0.3 });
+        }
+
+        // 冷雨细丝
+        D.rain(ctx, lt, 140, 0.28, 0.35);
+        D.post(ctx, lt, { vig: 0.65, grain: 0.06 });
+      }
+    },
+
+    // ----------------------------------------------------
+    // 第 4 幕：风雨夜寻 · 泪湿的悬赏 (40 - 54s)
+    // ----------------------------------------------------
+    {
+      id: "s4",
+      badge: "第 四 幕",
+      title: "风雨夜寻 · 呼唤与空响",
+      dur: 14,
+      subs: [
+        [1.0, 6.0, "“大发——大发——”嘶哑的喊声被狂风撕碎。"],
+        [6.5, 13.0, "电线杆上的寻狗启事被暴雨打湿，车灯劈不开深黑的芦苇荡。"]
+      ],
+      draw: function (ctx, lt, dt) {
+        // 漆黑暴雨夜空
+        D.sky(ctx, [[0, '#0a0d14'], [0.6, '#111722'], [1, '#1b222d']]);
+
+        // 水泥电线杆与横跨电线
+        D.pole(ctx, 420, 820, 580, '#1a1f26');
+        D.wires(ctx, 0, 1920, 260, 40);
+
+        // 电线杆上贴着大发的寻狗启事（随暴雨水迹斑斑）
+        D.poster(ctx, 420, 520, 1.35, 0.04, 0.95, 0.4);
+
+        // 远处芦苇丛在狂风暴雨中剧烈起伏摇摆
+        D.reeds(ctx, 800, lt * 3, 160, '#3d4734', 15, 240, 500, W);
+        D.ground(ctx, 810, '#15191f', '#090c10');
+
+        // 阿沐打着强烈手电筒光柱在狂风暴雨中一步一滑向前搜寻
+        const amuX = 1200 - lt * 15;
+        DF.people.drawAmu(ctx, amuX, 810, 1.4, -1, 'search', lt);
+
+        // 远方泥泞深处，大发小小的白色身影逆着风雨艰难跋涉
+        const lonelyDogX = 720 - lt * 25;
+        DF.dog.draw(ctx, lonelyDogX, 800, 0.75, -1, 'walk', { t: lt * 1.5, phase: (lt * 1.6) % 1, dirtLevel: 0.7 });
+
+        // 倾盆狂风暴雨
+        D.rain(ctx, lt, 380, 0.65, 0.42);
+        D.splashes(ctx, lt, 810, 870, 45);
+
+        D.post(ctx, lt, { vig: 0.75, grain: 0.08 });
+      }
+    },
+
+    // ----------------------------------------------------
+    // 第 5 幕：树梢信标 · 熟悉的味道 (54 - 68s)
+    // ----------------------------------------------------
+    {
+      id: "s5",
+      badge: "第 五 幕",
+      title: "深秋信标 · 家的气味",
+      dur: 14,
+      subs: [
+        [1.0, 6.0, "他在每一个荒僻岔路口的树梢上，系上带有家里气味的旧毛衣布条。"],
+        [6.5, 13.0, "晨光刺破云层。你停下了脚步，仰起头，闻到了久违的爸爸的味道。"]
+      ],
+      draw: function (ctx, lt, dt) {
+        // 晨曦破晓秋日光晕
+        D.sky(ctx, [[0, '#243342'], [0.4, '#5d544c'], [0.7, '#a87955'], [1, '#d8a577']]);
+        D.hills(ctx, 760, 50, 3, '#4a4838', 10);
+        D.ground(ctx, 780, '#544633', '#332719');
+
+        // 晨曦金色丁达尔漫反射光
+        D.glow(ctx, 1400, 360, 600, 'rgba(255, 215, 140, 0.45)');
+
+        // 枯树桩与树杈
+        D.bareTree(ctx, 860, 780, 2.2, '#2f231a', 7);
+
+        // 树杈上绑着的深蓝旧毛衣布条（在晨风中烈烈翻飞）
+        // 布条发着温暖的微光气味信标
+        D.ribbon(ctx, 860, 430, lt, 110, '#1e3799', 1.4, 0.85);
+
+        // 大发从画面右侧小跑过来，在布条正下方停步、踮起前爪仰头使劲嗅闻！
+        let dogX = 1350 - lt * 60;
+        let anim = 'trot';
+        if (dogX < 920) {
+          dogX = 920;
+          anim = 'sniff'; // 停在布条下方，仰头抽嗅鼻尖！
+        }
+        DF.dog.draw(ctx, dogX, 775, 1.3, -1, anim, { t: lt, dirtLevel: 0.85 });
+
+        // 晨风浮叶与轻雾
+        D.drift(ctx, lt, 30, 22, { color: 'rgba(230,160,80,0.65)', shape: 'leaf', vy: 25, vx: 50, size: 4 });
+        D.post(ctx, lt, { vig: 0.45, grain: 0.04 });
+      }
+    },
+
+    // ----------------------------------------------------
+    // 第 6 幕：奇迹之晨 · 大发回家 (68 - 84s)
+    // ----------------------------------------------------
+    {
+      id: "s6",
+      badge: "终 局",
+      title: "奇迹之晨 · 大哥哥回家了",
+      dur: 16,
+      subs: [
+        [1.0, 5.0, "门开了一条缝，晨光洒在门垫上。"],
+        [5.5, 10.5, "满身草籽泥水、冻得发抖的你，尾巴却疯狂摇成了螺旋桨！"],
+        [11.0, 15.5, "“宝宝快看！大哥哥自己摸索回家了！”一家人终于团圆。"]
+      ],
+      draw: function (ctx, lt, dt) {
+        // 门内温暖金光映衬楼道
+        D.sky(ctx, [[0, '#1c1b18'], [0.5, '#3b342a'], [1, '#5c4f3d']]);
+        D.ground(ctx, 770, '#3d3832', '#221f1b');
+
+        // 防盗门与门框 (x=1100)
+        // 门缓缓打开的扇形暖金光区 (Light spill)
+        const doorOpen = Math.min(1, lt / 3.0);
+        ctx.save();
+        const doorG = ctx.createRadialGradient(1160, 550, 50, 1160, 550, 800);
+        doorG.addColorStop(0, 'rgba(255, 235, 170, 0.95)');
+        doorG.addColorStop(0.4, 'rgba(255, 210, 120, 0.65)');
+        doorG.addColorStop(1, 'rgba(255, 210, 120, 0)');
+        ctx.fillStyle = doorG;
+        ctx.beginPath();
+        ctx.moveTo(1160, 180);
+        ctx.lineTo(1160 + doorOpen * 160, 180);
+        ctx.lineTo(1350 + doorOpen * 300, 770);
+        ctx.lineTo(950, 770);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // 门垫
+        ctx.fillStyle = '#6d4c41';
+        ctx.fillRect(720, 762, 180, 18);
+        ctx.fillStyle = '#d7ccc8';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('WELCOME', 770, 775);
+
+        // 门内阿沐与婉儿激动得掩面冲出
+        if (lt > 2.5) {
+          DF.people.drawWan(ctx, 1220, 765, 1.35, -1, 'embrace', lt);
+          DF.people.drawAmu(ctx, 1340, 765, 1.4, -1, 'stand', lt);
+        }
+
+        // 大发站在门垫上！
+        // 满身泥水草籽(dirtLevel=1.0)，身体因为寒冷和长途跋涉背脊轻颤，
+        // 但尾巴以 24Hz 极高频疯狂甩动，四只小圆爪踏着兴奋碎步！
+        DF.dog.draw(ctx, 790, 755, 1.4, 1, 'wag', { t: lt, dirtLevel: 1.0 });
+
+        // 金色感动光粒子漫天升腾
+        D.drift(ctx, lt, 50, 9, { color: 'rgba(255,230,160,0.85)', vy: -35, vx: 10, glow: true, size: 3.5 });
+
+        D.post(ctx, lt, { vig: 0.38, grain: 0.03 });
+      }
+    }
+  ];
+
+})();
+
+</script>
+</body>
+</html>
