@@ -1008,22 +1008,22 @@ window.DF_SFX = {
     return p;
   }
 
-  // 绘制西高地真实短腿 (大腿上臂更紧凑粗短)
-  function drawShortLeg(ctx, thighL, shinL, pawL, thighA, shinA, pawA, isFront, color = '#f7f4ec', dirt = 0) {
+  // 绘制西高地身材 (偏瘦、腿稍微长一点的匀称身形)
+  function drawLeg(ctx, thighL, shinL, pawL, thighA, shinA, pawA, isFront, color = '#f7f4ec', dirt = 0) {
     ctx.save();
     ctx.rotate(thighA);
 
-    // 短且粗壮的大腿
-    const thighW = isFront ? 15 : 18;
+    // 适度修长匀称的大腿
+    const thighW = isFront ? 11 : 13;
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.ellipse(0, thighL * 0.5, thighW * 0.5, thighL * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 小腿
+    // 稍微修长的小腿
     ctx.translate(0, thighL);
     ctx.rotate(shinA);
-    const shinW = isFront ? 11 : 13;
+    const shinW = isFront ? 8.5 : 10;
     ctx.fillStyle = dirt > 0.4 ? DF.mix(color, '#5a4634', dirt * 0.7) : color;
     ctx.beginPath();
     ctx.ellipse(0, shinL * 0.5, shinW * 0.5, shinL * 0.5, 0, 0, Math.PI * 2);
@@ -1034,24 +1034,24 @@ window.DF_SFX = {
     ctx.rotate(pawA);
     ctx.fillStyle = dirt > 0.2 ? DF.mix(color, '#443527', dirt * 0.85) : color;
     ctx.beginPath();
-    ctx.ellipse(2, pawL * 0.4, 7, 5, 0.15, 0, Math.PI * 2);
+    ctx.ellipse(2, pawL * 0.4, 6, 4.5, 0.15, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
 
-  // 绘制黄色珊瑚绒小熊背心 (Yellow Fleece Vest)
+  // 绘制黄色珊瑚绒小熊背心 (Yellow Fleece Vest) - 偏瘦精干身型
   function drawYellowBearVest(ctx, dirt = 0, isCleanThumbWiped = false) {
     ctx.save();
-    // 1. 背心黄色珊瑚绒主体
+    // 1. 背心黄色珊瑚绒主体 (更瘦长流畅)
     let vestColor = '#f5c542'; // 明亮暖黄
     if (dirt > 0.3) {
       vestColor = DF.mix(vestColor, '#5e4b37', Math.min(0.8, dirt * 0.85));
     }
     ctx.fillStyle = vestColor;
     ctx.beginPath();
-    // 覆盖躯干的背心轮廓 (前短后长，带罗纹滚边)
-    ctx.ellipse(0, -5, 33, 19, 0.05, 0, Math.PI * 2);
+    // 覆盖躯干的背心轮廓 (从33x19收紧为31x16，身形更清瘦匀称)
+    ctx.ellipse(0, -5, 31, 15.5, 0.05, 0, Math.PI * 2);
     ctx.fill();
 
     // 领口罗纹与边缘缝线
@@ -1193,16 +1193,16 @@ window.DF_SFX = {
     ctx.fill();
     ctx.restore();
 
-    // 2. 远侧后肢 (紧凑短腿)
+    // 2. 远侧后肢 (腿稍微长一点、匀称修长)
     ctx.save();
-    ctx.translate(-20, 2 + pose.torsoY);
-    drawShortLeg(ctx, 22, 22, 7, pose.backThighR, pose.backShinR, pose.backPawR, false, coatShadow, dirt);
+    ctx.translate(-20, 0 + pose.torsoY);
+    drawLeg(ctx, 28, 28, 7, pose.backThighR, pose.backShinR, pose.backPawR, false, coatShadow, dirt);
     ctx.restore();
 
     // 3. 远侧前肢
     ctx.save();
-    ctx.translate(18, -2 + pose.torsoY);
-    drawShortLeg(ctx, 20, 21, 7, pose.frontThighR, pose.frontShinR, pose.frontPawR, true, coatShadow, dirt);
+    ctx.translate(18, -4 + pose.torsoY);
+    drawLeg(ctx, 26, 26, 7, pose.frontThighR, pose.frontShinR, pose.frontPawR, true, coatShadow, dirt);
     ctx.restore();
 
     // 4. 躯干与黄色小熊背心
@@ -1378,16 +1378,16 @@ window.DF_SFX = {
     ctx.restore(); // 头部结束
     ctx.restore(); // 躯干结束
 
-    // 6. 近侧前肢 (短腿)
+    // 6. 近侧前肢 (适度修长匀称前腿)
     ctx.save();
-    ctx.translate(14, 0 + pose.torsoY);
-    drawShortLeg(ctx, 20, 21, 7, pose.frontThighL, pose.frontShinL, pose.frontPawL, true, coatBase, dirt);
+    ctx.translate(14, -2 + pose.torsoY);
+    drawLeg(ctx, 26, 26, 7, pose.frontThighL, pose.frontShinL, pose.frontPawL, true, coatBase, dirt);
     ctx.restore();
 
-    // 7. 近侧后肢 (短腿)
+    // 7. 近侧后肢 (适度修长匀称后腿)
     ctx.save();
-    ctx.translate(-16, 4 + pose.torsoY);
-    drawShortLeg(ctx, 22, 22, 7, pose.backThighL, pose.backShinL, pose.backPawL, false, coatBase, dirt);
+    ctx.translate(-16, 2 + pose.torsoY);
+    drawLeg(ctx, 28, 28, 7, pose.backThighL, pose.backShinL, pose.backPawL, false, coatBase, dirt);
     ctx.restore();
 
     ctx.restore(); // 总体结束
