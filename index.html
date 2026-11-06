@@ -432,27 +432,30 @@ window.DF_SFX = {
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
     if (sceneId === 's1') {
-      filterNode.frequency.setTargetAtTime(500, now, 1.5);
-      DF.playSFX('s1_celesta', 0.4, 0.2);
+      // 序幕：暴雨狂风、断绳瞬态爆发
+      filterNode.frequency.setTargetAtTime(1400, now, 0.8);
+      DF.playSFX('s3_rope_snap', 0.65, 0.05); // 麻绳崩断
+      DF.playSFX('s3_wind', 0.55, 0.2); // 荒野狂飙风效
     } else if (sceneId === 's2') {
-      filterNode.frequency.setTargetAtTime(500, now, 1.5);
-      DF.playSFX('s2_crib', 0.45, 0.5);
+      // 第二幕：冷暖对比，温暖微风与空灵下潜
+      filterNode.frequency.setTargetAtTime(450, now, 1.2);
+      DF.playSFX('s2_crib', 0.4, 0.4);
     } else if (sceneId === 's3') {
-      filterNode.frequency.setTargetAtTime(1400, now, 1.2); // 暴雨风声
-      DF.playSFX('s3_rope_snap', 0.6, 0.1); // 绳索崩断瞬态
-      DF.playSFX('s3_wind', 0.5, 0.3); // 拔腿飞奔狂风
+      // 第三幕：风雨夜寻，双线呼啸狂风与暴雨
+      filterNode.frequency.setTargetAtTime(1600, now, 0.9);
+      DF.playSFX('s4_wind_rain', 0.6, 0.2);
     } else if (sceneId === 's4') {
-      filterNode.frequency.setTargetAtTime(1600, now, 1.0);
-      DF.playSFX('s4_wind_rain', 0.55, 0.2); // 暴风雨夜呼啸
-    } else if (sceneId === 's5') {
+      // 第四幕：破晓微光，晨风掠过布条、空灵钢片琴单音点亮记忆
       filterNode.frequency.setTargetAtTime(600, now, 1.5);
-      DF.playSFX('s5_ribbon', 0.5, 0.8); // 树梢布条翻飞掠风声
-    } else if (sceneId === 's6') {
-      filterNode.frequency.setTargetAtTime(650, now, 1.2);
-      DF.playSFX('s6_door_latch', 0.5, 0.3); // 门锁咔哒轻响
-      DF.playSFX('s6_reunion', 0.6, 0.8); // 晨光与团圆绽放的高级Bloom
+      DF.playSFX('s5_ribbon', 0.5, 0.6); // 布条翻卷
+      DF.playSFX('s1_celesta', 0.45, 1.4); // 记忆觉醒灵动高音
+    } else if (sceneId === 's5') {
+      // 第五幕：终局大团圆，锁舌弹跳与温暖 Bloom 和声爆发
+      filterNode.frequency.setTargetAtTime(700, now, 1.0);
+      DF.playSFX('s6_door_latch', 0.55, 0.2); // 门锁微弹
+      DF.playSFX('s6_reunion', 0.65, 0.6); // 金色晨光 Bloom
     } else {
-      filterNode.frequency.setTargetAtTime(500, now, 1.5);  // 柔和
+      filterNode.frequency.setTargetAtTime(500, now, 1.5);
     }
   }
 
@@ -462,17 +465,24 @@ window.DF_SFX = {
       if (!audioCtx || !isPlaying || isMuted) return;
       const now = audioCtx.currentTime;
       const s = getSceneAt(currentTime);
-      if (s.id === 's1' || s.id === 's2') {
-        const chord = [NOTES.C4, NOTES.E4, NOTES.G4, NOTES.B4, NOTES.A4, NOTES.C5];
-        playPiano(chord[beat % chord.length], now, 2.8, 0.45);
-      } else if (s.id === 's3' || s.id === 's4') {
+      if (s.id === 's1') {
+        // 紧张狂奔小调
         const chord = [NOTES.A3, NOTES.E4, NOTES.C4, NOTES.D4];
+        playPiano(chord[beat % chord.length], now, 2.2, 0.4);
+      } else if (s.id === 's2') {
+        // 柔和回忆与空灵
+        const chord = [NOTES.C4, NOTES.E4, NOTES.G4, NOTES.B4];
         playPiano(chord[beat % chord.length], now, 3.2, 0.35);
-      } else if (s.id === 's5') {
+      } else if (s.id === 's3') {
+        // 深夜寻找低沉脉动
+        const chord = [NOTES.D3, NOTES.A3, NOTES.F3, NOTES.C4];
+        playPiano(chord[beat % chord.length], now, 2.0, 0.45);
+      } else if (s.id === 's4') {
+        // 破晓希望舒缓和弦
         const chord = [NOTES.F4, NOTES.A4, NOTES.C5, NOTES.E5];
-        playPiano(chord[beat % chord.length], now, 2.5, 0.5);
-      } else if (s.id === 's6') {
-        // 重逢大团圆和弦
+        playPiano(chord[beat % chord.length], now, 2.8, 0.5);
+      } else if (s.id === 's5') {
+        // 重逢大团圆温暖大三和弦
         playPiano(NOTES.C4, now, 4.0, 0.6);
         playPiano(NOTES.G4, now + 0.12, 3.5, 0.5);
         playPiano(NOTES.E5, now + 0.24, 3.5, 0.55);
@@ -1535,341 +1545,298 @@ window.DF_SFX = {
 
 /* ===== scenes.js ===== */
 /* 《大发回家》 纯代码程序化骨骼驱动剧场 (Vector Puppet Movie Pipeline)
-   - 彻底摒弃任何位图轮播和Ken Burns PPT感！
-   - 全剧情 6 幕纯 Canvas 矢量实时渲染
-   - 角色骨骼驱动：大发 (DF.dog) 真实奔跑、驻足嗅闻、狂摇尾巴；阿沐/婉儿/婴儿床 (DF.people)
-   - 背景环境：纯 Canvas 程序化生成武汉老屋、官塘村荒野芦苇荡、暴雨车灯路牌、晨曦大门
+   - 彻底推翻说明书式旁白，转向纯视听镜头语言驱动！
+   - 5 幕电影级戏剧冲突：
+     S1: 破云裂断 · 狂奔入夜 (0-16s)
+     S2: 冷暖虚实 · 空置的角落 (16-32s)
+     S3: 风雨双线 · 泥泞与信标 (32-52s)
+     S4: 破晓微光 · 气味的苏醒 (52-70s)
+     S5: 奇迹之晨 · 大哥哥回家了 (70-90s)
 */
 
 (function () {
   const { W, H } = DF;
   const D = DF.D;
 
-  // 6幕纯代码剧情
   DF.scenes = [
     // ----------------------------------------------------
-    // 第 1 幕：汉阳初遇 · 五载温情 (0 - 13s)
+    // 第 1 幕：破云裂断 · 狂奔入夜 (0 - 16s)
     // ----------------------------------------------------
     {
       id: "s1",
-      badge: "第 一 幕",
-      title: "汉阳初遇 · 守望相伴",
-      dur: 13,
+      badge: "序 幕",
+      title: "破云裂断 · 狂奔入夜",
+      dur: 16,
       subs: [
-        [1.0, 6.0, "五年前，武汉汉阳街头撑开的大伞下……"],
-        [6.5, 12.0, "“就叫你大发吧，发发发。”从此，你成了家里的大儿子。"]
+        [2.0, 7.5, "它不懂什么是“只是几天”。"]
       ],
       draw: function (ctx, lt, dt) {
-        // 1. 汉阳暖色雨夜街头背景
-        D.sky(ctx, [[0, '#12151f'], [0.6, '#282b3d'], [1, '#423730']]);
-        D.streetLamp(ctx, 320, 820, 360, 1, 'rgba(255,200,120,0.85)');
-        D.building(ctx, 60, 820, 200, 480, '#1c1e28', '#ffd59e', 5, 0.45);
-        D.building(ctx, 1450, 820, 260, 420, '#181a24', '#ffc078', 8, 0.35);
+        // 1. 漆黑苍凉暴雨夜空
+        D.sky(ctx, [[0, '#0a0d14'], [0.4, '#151b26'], [0.8, '#2d241e'], [1, '#1b1410']]);
+        D.hills(ctx, 740, 45, 2.5, '#1e241c', 4);
 
-        // 地面与积水倒影
-        D.ground(ctx, 820, '#24201c', '#151210');
-        D.rain(ctx, lt, 220, 0.45, 0.2);
-        D.splashes(ctx, lt, 820, 880, 25);
+        // 远景狂暴摇摆芦苇荡
+        D.reeds(ctx, 770, lt * 3.2, 140, '#382f1e', 19, 200, 0, W);
 
-        // 2. 角色演出：阿沐撑伞蹲下唤狗，大发从小跑减速走近、摇尾巴蹭手
-        // 阿沐位置 (固定在 x=920, y=820)
-        DF.people.drawAmu(ctx, 920, 820, 1.25, -1, 'crouch', lt);
+        // 地面
+        D.ground(ctx, 780, '#26201a', '#120f0c');
 
-        // 大发从画面左侧跑入，在阿沐手前停下并摇尾巴
-        let dogX = 180 + lt * 80;
-        let dogState = 'trot';
-        if (dogX > 780) {
-          dogX = 780;
-          dogState = 'wag'; // 走到跟前，欢快狂摇尾巴
-        } else if (dogX > 680) {
-          dogState = 'walk'; // 接近时放慢步伐
+        // 左侧蔡甸老家红砖院门（昏暗、风雨大作）
+        D.redWall(ctx, -20, 360, 340, 440, 11, 0.7);
+
+        // 地面上崩断的麻绳特写
+        ctx.save();
+        ctx.strokeStyle = '#c2a677';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(180, 700);
+        ctx.quadraticCurveTo(250, 780, 310, 805);
+        ctx.stroke();
+        // 断口毛刺
+        ctx.fillStyle = '#dfc394';
+        for (let i = 0; i < 8; i++) {
+          ctx.fillRect(310 + i * 2, 802 + (i % 2) * 4, 3.5, 3.5);
         }
-        DF.dog.draw(ctx, dogX, 815, 1.0, 1, dogState, { t: lt, dirtLevel: 0.1 });
+        ctx.restore();
 
-        // 3. 电影级暗角与颗粒
+        // 大发从院门口爆发拔腿疯跑！四足大跨度飞跃 (gallop)
+        // 速度更快，泥水四溅，逆风狂飙扎进深黑
+        const runX = 340 + lt * 175;
+        if (runX < W + 250) {
+          // 四爪剧烈泥浆飞溅
+          ctx.fillStyle = 'rgba(74, 56, 38, 0.9)';
+          for (let k = 0; k < 7; k++) {
+            const sx = runX - 30 - Math.random() * 80;
+            const sy = 790 - Math.random() * 30;
+            ctx.fillRect(sx, sy, 4.5, 3.5);
+          }
+          DF.dog.draw(ctx, runX, 765, 1.3, 1, 'run', { t: lt * 3.2, phase: (lt * 3.8) % 1, dirtLevel: 0.4 });
+        }
+
+        // 近景呼啸暴雨
+        D.rain(ctx, lt, 320, 0.55, 0.4);
+        D.splashes(ctx, lt, 780, 850, 35);
+        D.post(ctx, lt, { vig: 0.75, grain: 0.08 });
+      }
+    },
+
+    // ----------------------------------------------------
+    // 第 2 幕：冷暖虚实 · 空置的角落 (16 - 32s)
+    // ----------------------------------------------------
+    {
+      id: "s2",
+      badge: "第 二 幕",
+      title: "冷暖虚实 · 空置的角落",
+      dur: 16,
+      subs: [], // 纯视听无说明书字幕，完全靠镜头冷暖对冲！
+      draw: function (ctx, lt, dt) {
+        // 室内空间：左侧回忆暖色（汉阳），右侧现实清冷（蔡甸）
+        const g = ctx.createLinearGradient(0, 0, W, 0);
+        g.addColorStop(0, '#423528');
+        g.addColorStop(0.48, '#2c2621');
+        g.addColorStop(0.52, '#1e242d');
+        g.addColorStop(1, '#131922');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+
+        // 木地板
+        D.ground(ctx, 760, '#3e2e21', '#1f1914');
+
+        // 左侧暖光晕（过去的汉阳老屋记忆）
+        D.glow(ctx, 420, 480, 450, 'rgba(255, 210, 130, 0.35)');
+        // 记忆浮尘
+        D.drift(ctx, lt, 25, 12, { color: 'rgba(255,230,170,0.6)', vy: -15, vx: 10, size: 3 });
+
+        // 左侧：大发还是幼犬小狗时，无忧无虑趴在脚边安睡
+        DF.dog.draw(ctx, 420, 840, 1.35, 1, 'lie', { t: lt, dirtLevel: 0 });
+        // 拖鞋
+        ctx.fillStyle = '#795548';
+        ctx.fillRect(320, 850, 45, 14);
+
+        // 中间分割虚化阴影
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(W * 0.49, 0, W * 0.02, H);
+        ctx.restore();
+
+        // 右侧冷光区（现在的蔡甸）：婴儿摇篮轻晃，阿沐婉儿背影，但原本的狗碗空空如也！
+        D.glow(ctx, 1400, 420, 480, 'rgba(200, 220, 255, 0.2)');
+        DF.people.drawCrib(ctx, 1450, 750, 1.4, lt);
+        DF.people.drawAmu(ctx, 1620, 755, 1.3, -1, 'stand', lt * 0.6);
+        DF.people.drawWan(ctx, 1300, 755, 1.25, 1, 'stand', lt * 0.6);
+
+        // 现实玄关原本放狗碗的地方：空荡荡，仅剩一圈地面磨损白印
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(1050, 860, 34, 14, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
         D.post(ctx, lt, { vig: 0.55, grain: 0.05 });
       }
     },
 
     // ----------------------------------------------------
-    // 第 2 幕：新成员到来 · 无声的守候 (13 - 26s)
-    // ----------------------------------------------------
-    {
-      id: "s2",
-      badge: "第 二 幕",
-      title: "新生命至 · 视线错落",
-      dur: 13,
-      subs: [
-        [1.0, 6.0, "五年后，家里迎来了啼哭的新生命。"],
-        [6.5, 12.0, "爸爸妈妈在忙碌，你默默趴在脚边，不懂自己还能退到哪里。"]
-      ],
-      draw: function (ctx, lt, dt) {
-        // 室内温暖柔光窗景
-        D.sky(ctx, [[0, '#3a352d'], [0.5, '#6d5a47'], [1, '#8e775d']]);
-        // 木地板
-        D.ground(ctx, 760, '#533c29', '#382618');
-
-        // 阳光透射与漂浮尘埃
-        D.glow(ctx, 1100, 480, 500, 'rgba(255, 235, 190, 0.35)');
-        D.drift(ctx, lt, 40, 12, { color: 'rgba(255,240,210,0.6)', vy: -20, vx: 15, size: 3 });
-
-        // 婴儿摇篮（在阳光下轻轻微晃）
-        DF.people.drawCrib(ctx, 1150, 750, 1.5, lt);
-
-        // 阿沐与婉儿轻抚婴儿背影
-        DF.people.drawAmu(ctx, 1340, 755, 1.35, -1, 'stand', lt * 0.8);
-        DF.people.drawWan(ctx, 980, 755, 1.3, 1, 'stand', lt * 0.8);
-
-        // 前景大发趴在狗碗旁（极低视角，眼神充满守候）
-        // 狗碗
-        ctx.fillStyle = '#95a5a6';
-        ctx.beginPath();
-        ctx.ellipse(360, 865, 30, 12, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 大发安静趴着安睡/守望
-        DF.dog.draw(ctx, 480, 845, 1.45, 1, 'lie', { t: lt, dirtLevel: 0 });
-
-        D.post(ctx, lt, { vig: 0.45, grain: 0.04 });
-      }
-    },
-
-    // ----------------------------------------------------
-    // 第 3 幕：官塘村暮色 · 挣脱的断绳 (26 - 40s)
+    // 第 3 幕：风雨双线 · 泥泞与信标 (32 - 52s)
     // ----------------------------------------------------
     {
       id: "s3",
       badge: "第 三 幕",
-      title: "官塘暮色 · 奔向荒原",
-      dur: 14,
+      title: "风雨双线 · 泥泞与信标",
+      dur: 20,
       subs: [
-        [1.0, 6.0, "十月初，蔡甸官塘村乡下院落。你不知道什么是“只是几天”。"],
-        [6.5, 13.0, "夜里绳索崩断，你头也不回地扎进了茫茫无际的秋风荒原。"]
+        [3.0, 8.5, "他把思念撕碎，系在每一个荒僻的岔路口。"]
       ],
       draw: function (ctx, lt, dt) {
-        // 暮色灰蓝苍茫天空
-        D.sky(ctx, [[0, '#1c2836'], [0.4, '#39485c'], [0.8, '#7d6858'], [1, '#4a3d31']]);
-        D.hills(ctx, 740, 45, 2.5, '#2e382b', 4);
+        // 1. 漆黑深沉雨夜
+        D.sky(ctx, [[0, '#05070c'], [0.5, '#0b0f16'], [1, '#121822']]);
+        D.hills(ctx, 750, 35, 2.0, '#090d13', 3, lt * 6); // 背景微视差
 
-        // 远景芦苇荡
-        D.reeds(ctx, 770, lt, 120, '#695938', 19, 180, 0, W);
+        // 2. 芦苇丛在狂暴风雨中疯狂起伏
+        D.reeds(ctx, 790, lt * 3.6, 180, '#161e18', 15, 260, 0, W);
+        D.ground(ctx, 810, '#0d1117', '#05070a');
 
-        // 地面
-        D.ground(ctx, 780, '#362f27', '#201b15');
-
-        // 左侧蔡甸老家红砖院门
-        D.redWall(ctx, -20, 380, 320, 420, 11, 0.7);
-
-        // 地面上崩断的麻绳
+        // 地面积水反光
         ctx.save();
-        ctx.strokeStyle = '#c2a677';
-        ctx.lineWidth = 4;
+        ctx.fillStyle = 'rgba(30, 42, 58, 0.55)';
         ctx.beginPath();
-        ctx.moveTo(180, 720);
-        ctx.quadraticCurveTo(240, 785, 290, 805);
-        ctx.stroke();
-        // 断口毛刺
-        ctx.fillStyle = '#dfc394';
-        for (let i = 0; i < 6; i++) {
-          ctx.fillRect(290 + i * 2, 803 + (i % 2) * 3, 3, 3);
-        }
-        ctx.restore();
-
-        // 大发从院门口爆发拔腿飞奔！四足大跨度飞跃 (gallop)
-        const runX = 320 + lt * 160;
-        // 奔跑时四爪溅起泥水颗粒
-        if (runX < W + 200) {
-          ctx.fillStyle = '#4a3826';
-          for (let k = 0; k < 5; k++) {
-            const sx = runX - 40 - Math.random() * 60;
-            const sy = 790 - Math.random() * 25;
-            ctx.fillRect(sx, sy, 4, 3);
-          }
-          DF.dog.draw(ctx, runX, 770, 1.25, 1, 'run', { t: lt * 2.8, phase: (lt * 3.5) % 1, dirtLevel: 0.3 });
-        }
-
-        // 冷雨细丝
-        D.rain(ctx, lt, 140, 0.28, 0.35);
-        D.post(ctx, lt, { vig: 0.65, grain: 0.06 });
-      }
-    },
-
-    // ----------------------------------------------------
-    // 第 4 幕：风雨夜寻 · 泪湿的悬赏 (40 - 54s)
-    // ----------------------------------------------------
-    {
-      id: "s4",
-      badge: "第 四 幕",
-      title: "风雨夜寻 · 呼唤与空响",
-      dur: 14,
-      subs: [
-        [1.0, 6.0, "“大发——大发——”嘶哑的喊声被狂风撕碎。"],
-        [6.5, 13.0, "电线杆上的寻狗启事被暴雨打湿，车灯劈不开深黑的芦苇荡。"]
-      ],
-      draw: function (ctx, lt, dt) {
-        // 1. 深邃暗夜天空与远山视差
-        D.sky(ctx, [[0, '#06080e'], [0.5, '#0c1017'], [1, '#151c26']]);
-        D.hills(ctx, 750, 35, 2.0, '#0b0f15', 3, lt * 5); // 极慢背景视差
-
-        // 2. 远景：芦苇丛在狂风暴雨中剧烈起伏摇摆（带风浪层级）
-        D.reeds(ctx, 790, lt * 3.5, 180, '#1c241e', 15, 260, 480, W);
-        D.reeds(ctx, 810, lt * 3.8 + 1.2, 140, '#131a15', 18, 220, 400, W);
-
-        // 3. 泥泞田埂与积水水洼倒影（高反光与水洼反光）
-        D.ground(ctx, 810, '#11151c', '#06080a');
-        
-        // 地面积水反光坑
-        ctx.save();
-        ctx.fillStyle = 'rgba(25, 35, 48, 0.55)';
-        ctx.beginPath();
-        ctx.ellipse(680, 840, 140, 22, -0.05, 0, Math.PI * 2);
-        ctx.ellipse(1150, 850, 180, 25, 0.08, 0, Math.PI * 2);
+        ctx.ellipse(550, 845, 160, 22, -0.04, 0, Math.PI * 2);
+        ctx.ellipse(1350, 855, 190, 26, 0.06, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        // 4. 中景：水泥电线杆与横跨电线（贴着湿透的寻狗启事）
-        D.pole(ctx, 360, 820, 600, '#14181f');
-        D.wires(ctx, 0, 1920, 240, 45);
-        D.poster(ctx, 360, 500, 1.4, 0.05, 0.95, 0.6); // 寻狗启事带雨水浸湿下垂感
+        // 3. 右侧岔路口枯树与系布条
+        D.bareTree(ctx, 1450, 810, 2.3, '#1a1410', 8);
+        // 深蓝毛衣布条在暴风中撕扯翻卷
+        D.ribbon(ctx, 1450, 460, lt * 2.2, 120, '#1e3799', 1.5, 0.95);
 
-        // 5. 焦点角色 1：阿沐在泥泞中顶风搜寻
-        // 位置缓慢向左推移，手电筒光柱随步伐自然摇曳，劈开雨幕
-        const amuX = 1260 - lt * 18;
-        DF.people.drawAmu(ctx, amuX, 810, 1.45, -1, 'search', lt);
+        // 4. 双线角色 1：阿沐在树下打着强光手电筒，双手死死系好布条后向远方张望
+        DF.people.drawAmu(ctx, 1320, 810, 1.45, 1, 'search', lt);
 
-        // 6. 焦点角色 2：大发在田埂深处泥泞涉水艰难跋涉
-        // 增加更具表现力的泥水深一脚浅一脚颠簸、以及四爪溅起的泥浆
-        const lonelyDogX = 700 - lt * 28;
-        if (lonelyDogX > -100) {
-          // 爪下泥水飞溅
-          const splashK = Math.sin(lt * 6);
-          if (splashK > 0.2) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(70, 52, 35, 0.85)';
+        // 5. 双线角色 2：远景深黑田埂，大发浑身黑泥草籽艰难逆风涉水
+        const dogWalkX = 720 - lt * 22;
+        if (dogWalkX > -120) {
+          // 泥水深一脚浅一脚飞溅
+          if (Math.sin(lt * 6) > 0.1) {
+            ctx.fillStyle = 'rgba(65, 48, 32, 0.85)';
             for (let sp = 0; sp < 4; sp++) {
-              ctx.fillRect(lonelyDogX + 15 + sp * 8, 808 - Math.random() * 12, 3.5, 3.5);
+              ctx.fillRect(dogWalkX + 10 + sp * 8, 808 - Math.random() * 12, 3.5, 3.5);
             }
-            ctx.restore();
           }
-          // 大发逆风艰难前行（长途跋涉满身泥泞草籽，dirtLevel随寻找加重到 0.8）
-          DF.dog.draw(ctx, lonelyDogX, 802, 0.85, -1, 'walk', {
+          DF.dog.draw(ctx, dogWalkX, 804, 0.85, -1, 'walk', {
             t: lt * 1.6,
             phase: (lt * 1.8) % 1,
-            dirtLevel: 0.8
+            dirtLevel: 0.85
           });
         }
 
-        // 7. 前景雨幕分层：高速近景暴雨斜线 + 远景细密雨丝（拉开空间纵深）
-        D.rain(ctx, lt, 180, 0.25, 0.42, 12); // 远景细雨
-        D.rain(ctx, lt * 1.4, 260, 0.55, 0.45, 5); // 近景疾风骤雨
-        D.splashes(ctx, lt, 810, 890, 55, 17); // 地面密集水花
+        // 6. 前后景狂风暴雨双层分层
+        D.rain(ctx, lt, 190, 0.28, 0.45, 12);
+        D.rain(ctx, lt * 1.5, 290, 0.6, 0.48, 5);
+        D.splashes(ctx, lt, 810, 890, 50, 17);
 
-        // 8. 电影级风雨夜暗角与胶片颗粒
         D.post(ctx, lt, { vig: 0.82, grain: 0.09 });
       }
     },
 
     // ----------------------------------------------------
-    // 第 5 幕：树梢信标 · 熟悉的味道 (54 - 68s)
+    // 第 4 幕：破晓微光 · 气味的苏醒 (52 - 70s)
     // ----------------------------------------------------
     {
-      id: "s5",
-      badge: "第 五 幕",
-      title: "深秋信标 · 家的气味",
-      dur: 14,
+      id: "s4",
+      badge: "第 四 幕",
+      title: "破晓微光 · 气味的苏醒",
+      dur: 18,
       subs: [
-        [1.0, 6.0, "他在每一个荒僻岔路口的树梢上，系上带有家里气味的旧毛衣布条。"],
-        [6.5, 13.0, "晨光刺破云层。你停下了脚步，仰起头，闻到了久违的爸爸的味道。"]
+        [3.0, 8.5, "晨光刺破云层，它仰起头，闻到了回家的方向。"]
       ],
       draw: function (ctx, lt, dt) {
-        // 晨曦破晓秋日光晕
-        D.sky(ctx, [[0, '#243342'], [0.4, '#5d544c'], [0.7, '#a87955'], [1, '#d8a577']]);
-        D.hills(ctx, 760, 50, 3, '#4a4838', 10);
-        D.ground(ctx, 780, '#544633', '#332719');
+        // 破晓清冷紫青渐变天色
+        D.sky(ctx, [[0, '#182433'], [0.4, '#3d3844'], [0.7, '#7b5c52'], [1, '#c28b63']]);
+        D.hills(ctx, 760, 45, 3.0, '#353229', 10);
+        D.ground(ctx, 780, '#423729', '#241b12');
 
-        // 晨曦金色丁达尔漫反射光
-        D.glow(ctx, 1400, 360, 600, 'rgba(255, 215, 140, 0.45)');
+        // 晨曦第一缕穿透丁达尔金光
+        D.glow(ctx, 1380, 340, 650, 'rgba(255, 215, 130, 0.42)');
 
-        // 枯树桩与树杈
-        D.bareTree(ctx, 860, 780, 2.2, '#2f231a', 7);
+        // 画面正中心横贯的枯树
+        D.bareTree(ctx, 920, 780, 2.4, '#241b14', 7);
 
-        // 树杈上绑着的深蓝旧毛衣布条（在晨风中烈烈翻飞）
-        // 布条发着温暖的微光气味信标
-        D.ribbon(ctx, 860, 430, lt, 110, '#1e3799', 1.4, 0.85);
+        // 树梢深蓝旧毛衣布条（在晨风中舒缓招展）
+        D.ribbon(ctx, 920, 420, lt * 1.2, 115, '#1e3799', 1.45, 0.9);
 
-        // 大发从画面右侧小跑过来，在布条正下方停步、踮起前爪仰头使劲嗅闻！
-        let dogX = 1350 - lt * 60;
-        let anim = 'trot';
-        if (dogX < 920) {
-          dogX = 920;
-          anim = 'sniff'; // 停在布条下方，仰头抽嗅鼻尖！
+        // 大发从画面右侧步履蹒跚走入，停在布条正下方仰头抽嗅！
+        let dogX = 1420 - lt * 65;
+        let anim = 'walk';
+        if (dogX < 980) {
+          dogX = 980;
+          anim = 'sniff'; // 核心戏剧定格动作：前爪踮起、鼻尖高频抽嗅、耳朵竖起！
         }
-        DF.dog.draw(ctx, dogX, 775, 1.3, -1, anim, { t: lt, dirtLevel: 0.85 });
+        DF.dog.draw(ctx, dogX, 775, 1.35, -1, anim, { t: lt, dirtLevel: 0.95 });
 
-        // 晨风浮叶与轻雾
-        D.drift(ctx, lt, 30, 22, { color: 'rgba(230,160,80,0.65)', shape: 'leaf', vy: 25, vx: 50, size: 4 });
-        D.post(ctx, lt, { vig: 0.45, grain: 0.04 });
+        // 晨风浮叶与暖光微尘
+        D.drift(ctx, lt, 35, 22, { color: 'rgba(235,175,95,0.7)', shape: 'leaf', vy: 20, vx: 45, size: 4 });
+        D.post(ctx, lt, { vig: 0.48, grain: 0.04 });
       }
     },
 
     // ----------------------------------------------------
-    // 第 6 幕：奇迹之晨 · 大发回家 (68 - 84s)
+    // 第 5 幕：奇迹之晨 · 大哥哥回家了 (70 - 92s)
     // ----------------------------------------------------
     {
-      id: "s6",
+      id: "s5",
       badge: "终 局",
       title: "奇迹之晨 · 大哥哥回家了",
-      dur: 16,
+      dur: 22,
       subs: [
-        [1.0, 5.0, "门开了一条缝，晨光洒在门垫上。"],
-        [5.5, 10.5, "满身草籽泥水、冻得发抖的你，尾巴却疯狂摇成了螺旋桨！"],
-        [11.0, 15.5, "“宝宝快看！大哥哥自己摸索回家了！”一家人终于团圆。"]
+        [3.0, 9.0, "门开了，满身泥草的它，尾巴疯狂摇成了螺旋桨！"],
+        [10.0, 18.0, "五年前，你带它回家；五年后，它自己找到了回家的路。"]
       ],
       draw: function (ctx, lt, dt) {
-        // 门内温暖金光映衬楼道
-        D.sky(ctx, [[0, '#1c1b18'], [0.5, '#3b342a'], [1, '#5c4f3d']]);
-        D.ground(ctx, 770, '#3d3832', '#221f1b');
+        // 门内温暖金光
+        D.sky(ctx, [[0, '#1a1916'], [0.5, '#383126'], [1, '#564937']]);
+        D.ground(ctx, 770, '#38332c', '#1c1915');
 
-        // 防盗门与门框 (x=1100)
-        // 门缓缓打开的扇形暖金光区 (Light spill)
-        const doorOpen = Math.min(1, lt / 3.0);
+        // 门打开的扇形暖金光瀑 (Light spill)
+        const doorOpen = Math.min(1, lt / 2.8);
         ctx.save();
-        const doorG = ctx.createRadialGradient(1160, 550, 50, 1160, 550, 800);
-        doorG.addColorStop(0, 'rgba(255, 235, 170, 0.95)');
-        doorG.addColorStop(0.4, 'rgba(255, 210, 120, 0.65)');
-        doorG.addColorStop(1, 'rgba(255, 210, 120, 0)');
+        const doorG = ctx.createRadialGradient(1160, 550, 40, 1160, 550, 850);
+        doorG.addColorStop(0, 'rgba(255, 238, 175, 0.98)');
+        doorG.addColorStop(0.35, 'rgba(255, 215, 125, 0.7)');
+        doorG.addColorStop(1, 'rgba(255, 215, 125, 0)');
         ctx.fillStyle = doorG;
         ctx.beginPath();
-        ctx.moveTo(1160, 180);
-        ctx.lineTo(1160 + doorOpen * 160, 180);
-        ctx.lineTo(1350 + doorOpen * 300, 770);
-        ctx.lineTo(950, 770);
+        ctx.moveTo(1160, 170);
+        ctx.lineTo(1160 + doorOpen * 180, 170);
+        ctx.lineTo(1380 + doorOpen * 320, 770);
+        ctx.lineTo(920, 770);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
 
         // 门垫
-        ctx.fillStyle = '#6d4c41';
-        ctx.fillRect(720, 762, 180, 18);
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(700, 762, 200, 18);
         ctx.fillStyle = '#d7ccc8';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.fillText('WELCOME', 770, 775);
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText('WELCOME HOME', 740, 775);
 
-        // 门内阿沐与婉儿激动得掩面冲出
-        if (lt > 2.5) {
-          DF.people.drawWan(ctx, 1220, 765, 1.35, -1, 'embrace', lt);
+        // 门内阿沐与婉儿激动扑出、相拥
+        if (lt > 2.0) {
+          DF.people.drawWan(ctx, 1210, 765, 1.35, -1, 'embrace', lt);
           DF.people.drawAmu(ctx, 1340, 765, 1.4, -1, 'stand', lt);
         }
 
         // 大发站在门垫上！
-        // 满身泥水草籽(dirtLevel=1.0)，身体因为寒冷和长途跋涉背脊轻颤，
-        // 但尾巴以 24Hz 极高频疯狂甩动，四只小圆爪踏着兴奋碎步！
-        DF.dog.draw(ctx, 790, 755, 1.4, 1, 'wag', { t: lt, dirtLevel: 1.0 });
+        // 满身泥水草籽(dirtLevel=1.0)，尾巴以 26Hz 极高频甩成残影，兴奋小碎步踏脚！
+        DF.dog.draw(ctx, 790, 755, 1.45, 1, 'wag', { t: lt, dirtLevel: 1.0 });
 
         // 金色感动光粒子漫天升腾
-        D.drift(ctx, lt, 50, 9, { color: 'rgba(255,230,160,0.85)', vy: -35, vx: 10, glow: true, size: 3.5 });
+        D.drift(ctx, lt, 60, 9, { color: 'rgba(255,235,165,0.9)', vy: -40, vx: 12, glow: true, size: 3.8 });
 
-        D.post(ctx, lt, { vig: 0.38, grain: 0.03 });
+        D.post(ctx, lt, { vig: 0.35, grain: 0.03 });
       }
     }
   ];
