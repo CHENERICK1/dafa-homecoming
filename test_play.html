@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>《大发回家》第一幕 · 纸箱与叶冠 (Opus 5.5 皮影骨骼微电影)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #090c12;
+    color: #e6edf3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  #stage-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    max-width: 480px;
+    max-height: 854px;
+    aspect-ratio: 9/16;
+    background: #000;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    overflow: hidden;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 24px 20px;
+  }
+  .header {
+    text-align: center;
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    color: #ffd700;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 20px;
+    letter-spacing: 2px;
+  }
+  .title {
+    margin-top: 6px;
+    font-size: 18px;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    letter-spacing: 1px;
+  }
+  .subs-box {
+    margin-bottom: 40px;
+    text-align: center;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .subtitle {
+    display: inline-block;
+    padding: 8px 16px;
+    background: rgba(10, 15, 25, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    font-size: 14px;
+    color: #f0f6fc;
+    line-height: 1.5;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+    transition: all 0.3s ease;
+  }
+  #start-screen {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 14, 22, 0.92);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    text-align: center;
+    padding: 30px;
+  }
+  #start-screen h1 {
+    font-size: 26px;
+    color: #ffd700;
+    margin-bottom: 8px;
+  }
+  #start-screen p {
+    font-size: 13px;
+    color: #8b949e;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+  .btn-play {
+    padding: 12px 32px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #121824;
+    background: #ffd700;
+    border: none;
+    border-radius: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(255, 215, 0, 0.4);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .btn-play:hover {
+    transform: scale(1.05);
+    background: #ffe033;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage-container">
+  <canvas id="cv" width="1080" height="1920"></canvas>
+  
+  <div id="overlay">
+    <div class="header">
+      <div class="badge">ACT 01</div>
+      <div class="title" id="actTitle">纸箱与叶冠 · 信任仪式</div>
+    </div>
+    <div class="subs-box">
+      <div class="subtitle" id="subText">准备放映...</div>
+    </div>
+  </div>
+
+  <div id="start-screen" style="display:none;">
+    <h1>《大发回家》第一幕</h1>
+    <p>Opus 5.5 纯代码骨骼人偶 × Earshot 物理声学<br>包含：纸箱寒雨瑟瑟发抖 · 温暖手掌接引 · 金黄落叶定格信任</p>
+    <button class="btn-play" id="btnStart">▶ 开始放映</button>
+  </div>
+</div>
+
+<script src="js/sfx_data.js"></script>
+<script src="js/storyboard18_data.js"></script>
+<script src="js/storyboard_data.js"></script>
+<script src="js/cues.js"></script>
+<script src="js/dogstate.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/people.js"></script>
+<script src="js/puppet.js"></script>
+<script src="js/cutout.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/act01_standalone.js"></script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const DF = window.DF;
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const startScreen = document.getElementById('start-screen');
+  const btnStart = document.getElementById('btnStart');
+  const subText = document.getElementById('subText');
+  const act = DF.act01_standalone;
+
+  let startTime = 0;
+  let running = false;
+  let audioCtx = null;
+  let sfxPlayed = {};
+
+  function playSound(key) {
+    if (sfxPlayed[key]) return;
+    sfxPlayed[key] = true;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const b64 = DF.SFX && DF.SFX[key];
+      if (b64) {
+        const audio = new Audio(b64);
+        audio.play().catch(e => console.log('Audio play error', e));
+      }
+    } catch(e) {
+      console.log('Audio error', e);
+    }
+  }
+
+  function startNow() {
+    startScreen.style.display = 'none';
+    running = true;
+    startTime = performance.now();
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {}
+    requestAnimationFrame(renderLoop);
+  });
+
+  function renderLoop(now) {
+    if (!running) return;
+    const elapsed = (now - startTime) / 1000.0;
+    const loopT = elapsed % act.dur;
+
+    // 重置音效标记
+    if (loopT < 0.2) sfxPlayed = {};
+
+    // 触发精确音效 (Earshot 物理声学)
+    if (loopT >= 0.5 && !sfxPlayed['rain']) {
+      playSound('drip_drop');
+    }
+    if (loopT >= 4.5 && !sfxPlayed['hand']) {
+      playSound('hand_reach');
+    }
+    if (loopT >= 9.6 && !sfxPlayed['leaf']) {
+      playSound('leaf_swish');
+    }
+    if (loopT >= 11.0 && !sfxPlayed['celesta']) {
+      playSound('celesta_g5');
+    }
+
+    // 更新字幕
+    let currentSub = "";
+    for (const sub of act.subs) {
+      if (loopT >= sub[0] && loopT <= sub[1]) {
+        currentSub = sub[2];
+        break;
+      }
+    }
+    subText.textContent = currentSub || "· · ·";
+    subText.style.opacity = currentSub ? "1" : "0.3";
+
+    // 绘制舞台
+    ctx.clearRect(0, 0, 1080, 1920);
+    act.draw(ctx, loopT);
+
+    requestAnimationFrame(renderLoop);
+  }
+};
+setTimeout(startNow, 100);
+</script>
+
+</body>
+</html>
