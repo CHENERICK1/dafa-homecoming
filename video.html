@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>《大发归家路》微电影终剪版</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0d14;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .header { padding: 12px; text-align: center; }
+  .header h1 { font-size: 22px; color: #ffd700; margin-bottom: 8px; letter-spacing: 1px; }
+  .header p { font-size: 13px; color: #9ab; margin-bottom: 16px; }
+  .video-container {
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 9/16;
+    background: #000;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.8);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  video { width: 100%; height: 100%; object-fit: contain; }
+  .btn {
+    display: inline-block;
+    padding: 12px 28px;
+    background: #ffd700;
+    color: #111;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 15px;
+    border-radius: 24px;
+    box-shadow: 0 4px 15px rgba(255,215,0,0.35);
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>《大发归家路》微电影终剪版</h1>
+    <p>全动态镜头 · 电影交响配乐 · 角色对白 (48秒终剪版)</p>
+  </div>
+  <div class="video-container">
+    <video src="dafa_opus55_cinematic_master.mp4" controls playsinline preload="auto"></video>
+  </div>
+  <div>
+    <a href="dafa_opus55_cinematic_master.mp4" download="大发归家路_微电影终剪版.mp4" class="btn">📥 点击下载视频 MP4</a>
+  </div>
+</body>
+</html>
